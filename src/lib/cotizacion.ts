@@ -11,6 +11,12 @@ export interface Seccion {
   items: Item[];
 }
 
+export interface Pago {
+  id: string;
+  concepto: string;
+  porcentaje: number;
+}
+
 export interface Cotizacion {
   cotizacion_numero: string;
   fecha_emision: string;
@@ -23,15 +29,31 @@ export interface Cotizacion {
   proyecto_nombre: string;
   proyecto_ubicacion: string;
   asesor_nombre: string;
+  asesores_adicionales: string[];
   iva_porcentaje: number;
-  condiciones_pago: string;
-  tiempo_entrega: string;
-  validez_oferta: string;
+  pagos: Pago[];
+  entrega_dias: number;
+  entrega_tipo: string;
+  entrega_base: string;
+  validez_dias: number;
   secciones: Seccion[];
 }
 
 export const LOGO_ISOLOGO = "https://imglink.cc/cdn/ZF7ejqiY89.png";
 export const LOGO_IMAGOTIPO = "https://imglink.cc/cdn/ImDpSCV78S.png";
+
+export const ASESORES = [
+  "Cesar Augusto Medina Valderrama",
+  "Laura Valentina Medina Rojas",
+];
+
+export const ENTREGA_TIPOS = ["días hábiles", "días calendario", "semanas"];
+export const ENTREGA_BASES = [
+  "contados a partir de la recepción del anticipo",
+  "contados a partir de la firma del contrato",
+  "contados a partir de la aprobación de diseños",
+  "contados a partir de la entrega del sitio de obra",
+];
 
 export const formatCOP = (n: number) =>
   new Intl.NumberFormat("es-CO", {
@@ -51,6 +73,55 @@ export function calcTotals(data: Cotizacion) {
   return { subtotal, ivaTotal, totalGeneral: subtotal + ivaTotal };
 }
 
+export const sumPagos = (pagos: Pago[]) =>
+  Math.round(pagos.reduce((a, p) => a + (Number(p.porcentaje) || 0), 0) * 100) / 100;
+
+export const entregaTexto = (d: Cotizacion) =>
+  `${d.entrega_dias || 0} ${d.entrega_tipo} ${d.entrega_base}`;
+
+export const validezTexto = (d: Cotizacion) => `${d.validez_dias || 0} días calendario`;
+
+export const condicionesTexto = (d: Cotizacion) =>
+  d.pagos.map((p) => `${p.porcentaje}% ${p.concepto}`).join(" · ");
+
+/** Días entre emisión y vencimiento (o null si alguna fecha falta / es inválida). */
+export function diasVigencia(d: Cotizacion): number | null {
+  if (!d.fecha_emision || !d.fecha_vencimiento) return null;
+  const a = new Date(d.fecha_emision).getTime();
+  const b = new Date(d.fecha_vencimiento).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+export function validarCotizacion(d: Cotizacion) {
+  const errores: string[] = [];
+  if (!d.cliente_nombre.trim()) errores.push("El nombre del cliente es obligatorio.");
+  if (!d.cliente_email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.cliente_email))
+    errores.push("El email del cliente no es válido.");
+  if (!d.proyecto_nombre.trim()) errores.push("El nombre del proyecto es obligatorio.");
+  if (!d.asesor_nombre.trim()) errores.push("Selecciona un asesor.");
+
+  const dias = diasVigencia(d);
+  if (dias === null || dias < 0)
+    errores.push("La fecha de vencimiento debe ser posterior a la de emisión.");
+  if (d.validez_dias < 1 || d.validez_dias > 90)
+    errores.push("La validez de la oferta debe estar entre 1 y 90 días.");
+  if (dias !== null && dias >= 0 && d.validez_dias > dias)
+    errores.push(
+      `La validez (${d.validez_dias} días) no puede superar los ${dias} días hasta el vencimiento.`,
+    );
+
+  if (sumPagos(d.pagos) !== 100)
+    errores.push("Las condiciones de pago deben sumar exactamente 100%.");
+  if (d.pagos.some((p) => !p.concepto.trim()))
+    errores.push("Cada condición de pago necesita un concepto.");
+
+  if (!d.entrega_dias || d.entrega_dias < 1)
+    errores.push("Indica un tiempo de entrega válido.");
+
+  return errores;
+}
+
 export function buildPayload(data: Cotizacion) {
   const { subtotal, ivaTotal, totalGeneral } = calcTotals(data);
   return {
@@ -65,9 +136,16 @@ export function buildPayload(data: Cotizacion) {
     proyecto_nombre: data.proyecto_nombre,
     proyecto_ubicacion: data.proyecto_ubicacion,
     asesor_nombre: data.asesor_nombre,
-    condiciones_pago: data.condiciones_pago,
-    tiempo_entrega: data.tiempo_entrega,
-    validez_oferta: data.validez_oferta,
+    asesores_adicionales: data.asesores_adicionales,
+    condiciones_pago: condicionesTexto(data),
+    condiciones_pago_items: data.pagos.map((p) => ({
+      pago_concepto: p.concepto,
+      pago_porcentaje: p.porcentaje,
+      pago_valor: (totalGeneral * (p.porcentaje || 0)) / 100,
+      pago_valor_formato: formatCOP((totalGeneral * (p.porcentaje || 0)) / 100),
+    })),
+    tiempo_entrega: entregaTexto(data),
+    validez_oferta: validezTexto(data),
     iva_porcentaje: data.iva_porcentaje,
     subtotal,
     subtotal_formato: formatCOP(subtotal),
@@ -131,6 +209,17 @@ export function buildHtmlDocument(data: Cotizacion) {
     )
     .join("\n");
 
+  const pagos = data.pagos
+    .map(
+      (p) =>
+        `<li style="margin-bottom:4px;"><strong style="color:#374151;">${esc(p.porcentaje)}%</strong> ${esc(p.concepto)} — ${formatCOP((totalGeneral * (p.porcentaje || 0)) / 100)}</li>`,
+    )
+    .join("\n");
+
+  const asesoresExtra = data.asesores_adicionales.filter(Boolean).length
+    ? `<p style="font-size: 13px; color: #4B5563; margin: 2px 0 0 0;">Asesores: ${esc(data.asesores_adicionales.filter(Boolean).join(", "))}</p>`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -172,6 +261,7 @@ export function buildHtmlDocument(data: Cotizacion) {
       <p style="font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 4px 0;">${esc(data.proyecto_nombre)}</p>
       <p style="font-size: 13px; color: #4B5563; margin: 0 0 2px 0;">Ubicación: ${esc(data.proyecto_ubicacion)}</p>
       <p style="font-size: 13px; color: #4B5563; margin: 0;">Asesor: ${esc(data.asesor_nombre)}</p>
+      ${asesoresExtra}
     </div>
   </div>
 
@@ -199,9 +289,10 @@ export function buildHtmlDocument(data: Cotizacion) {
     <div style="clear: both;"></div>
 
     <div style="margin-top: 48px; border-top: 1px solid #E5E7EB; padding-top: 24px; font-size: 12px; color: #6B7280; line-height: 1.6;">
-      <p style="margin: 0 0 4px 0;"><strong style="color: #374151;">Condiciones de pago:</strong> ${esc(data.condiciones_pago)}</p>
-      <p style="margin: 0 0 4px 0;"><strong style="color: #374151;">Tiempo de entrega:</strong> ${esc(data.tiempo_entrega)}</p>
-      <p style="margin: 0;"><strong style="color: #374151;">Validez de la oferta:</strong> ${esc(data.validez_oferta)}</p>
+      <p style="margin: 0 0 4px 0;"><strong style="color: #374151;">Condiciones de pago:</strong></p>
+      <ul style="margin: 0 0 10px 18px; padding: 0;">${pagos}</ul>
+      <p style="margin: 0 0 4px 0;"><strong style="color: #374151;">Tiempo de entrega:</strong> ${esc(entregaTexto(data))}</p>
+      <p style="margin: 0;"><strong style="color: #374151;">Validez de la oferta:</strong> ${esc(validezTexto(data))}</p>
     </div>
 
     <div style="margin-top: 60px; display:table; width:100%;">
