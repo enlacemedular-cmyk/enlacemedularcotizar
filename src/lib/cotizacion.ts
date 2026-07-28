@@ -362,20 +362,28 @@ export function buildHtmlDocument(data: Cotizacion) {
       <p style="margin: 0;"><strong style="color: #374151;">Validez de la oferta:</strong> ${esc(validezTexto(data))}</p>
     </div>
 
-    <div style="margin-top: 60px; display:table; width:100%;">
-      <div style="display:table-cell; width:50%;">
-        <div style="border-top: 1px solid #9CA3AF; width: 220px; padding-top: 8px;">
-          <p style="font-size: 13px; font-weight: 600; color: #111827; margin: 0;">MEDULAR</p>
-          <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">Aceptación / Comercial</p>
+    <div class="avoid-break" style="margin-top: 48px; display:table; width:100%;">
+      <div style="display:table-cell; width:52%; vertical-align:bottom;">
+        ${firmaImg}
+        <div style="border-top: 1px solid #9CA3AF; width: 280px; padding-top: 8px;">
+          <p style="font-size: 13px; font-weight: 700; color: #111827; margin: 0;">${esc(data.asesor_nombre)}</p>
+          <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">${esc(data.asesor_cargo || "Asesor Comercial")} · MEDULAR</p>
+          ${data.asesor_telefono ? `<p style="font-size: 11px; color: #6B7280; margin: 1px 0 0 0;">Tel: ${esc(data.asesor_telefono)}</p>` : ""}
+          ${data.asesor_email ? `<p style="font-size: 11px; color: #6B7280; margin: 1px 0 0 0;">${esc(data.asesor_email)}</p>` : ""}
+          <div style="margin-top: 12px; border-left: 3px solid #C59B27; padding-left: 10px;">
+            <p style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #9CA3AF; margin: 0 0 5px 0;">Datos para transferencia</p>
+            ${cuentasHtml}
+          </div>
         </div>
       </div>
-      <div style="display:table-cell; width:50%; text-align:right;">
-        <div style="border-top: 1px solid #9CA3AF; width: 220px; padding-top: 8px; margin-left: auto;">
+      <div style="display:table-cell; width:48%; text-align:right; vertical-align:bottom;">
+        <div style="border-top: 1px solid #9CA3AF; width: 240px; padding-top: 8px; margin-left: auto;">
           <p style="font-size: 13px; font-weight: 600; color: #111827; margin: 0;">${esc(data.cliente_nombre)}</p>
           <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">Aceptado por el Cliente</p>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 </body>
