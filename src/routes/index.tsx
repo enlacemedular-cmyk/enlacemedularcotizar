@@ -324,17 +324,46 @@ function App() {
 
   const handleDownload = () => {
     const html = buildHtmlDocument(data);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Cotizacion-${data.cotizacion_numero || "MEDULAR"}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Archivo descargado", {
-      description: "Ábrelo e imprime como PDF si lo necesitas.",
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      setTimeout(() => iframe.remove(), 1000);
+    };
+
+    iframe.onload = () => {
+      const win = iframe.contentWindow;
+      if (!win) return cleanup();
+      const done = () => {
+        win.focus();
+        win.print();
+        cleanup();
+      };
+      const imgs = Array.from(win.document.images);
+      Promise.all(
+        imgs.map((img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise<void>((res) => {
+                img.onload = () => res();
+                img.onerror = () => res();
+              }),
+        ),
+      ).then(() => setTimeout(done, 350));
+    };
+
+    iframe.srcdoc = html;
+    toast.success("Generando PDF", {
+      description: `Elige "Guardar como PDF" en el diálogo de impresión.`,
     });
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-44">
