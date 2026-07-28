@@ -296,7 +296,7 @@ export function buildHtmlDocument(data: Cotizacion) {
   }
 </style>
 </head>
-<body style="margin:0; padding:0; background:#E5E7EB; font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+<body style="margin:0; padding:0; background:#FFFFFF; font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
 <img class="watermark" src="${LOGO_IMAGOTIPO}" alt="" />
 <div class="page" style="max-width: 850px; margin: 30px auto; background:transparent; box-shadow: 0 4px 24px rgba(34,37,42,0.12); padding: 0 0 40px 0;">
 
