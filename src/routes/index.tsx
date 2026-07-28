@@ -260,7 +260,33 @@ function App() {
       pagos: d.pagos.map((p) => (p.id === id ? { ...p, ...patch } : p)),
     }));
 
+  const addCuenta = () =>
+    setData((d) => ({
+      ...d,
+      cuentas: [
+        ...d.cuentas,
+        { id: uid(), entidad: ENTIDADES[0], tipo: TIPOS_CUENTA[0], numero: "", titular: d.asesor_nombre, nit: "" },
+      ],
+    }));
+  const removeCuenta = (id: string) =>
+    setData((d) => ({ ...d, cuentas: d.cuentas.filter((c) => c.id !== id) }));
+  const updateCuenta = (id: string, patch: Partial<Cuenta>) =>
+    setData((d) => ({
+      ...d,
+      cuentas: d.cuentas.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    }));
+
+  /** Autocorrige ortografía/redacción al salir del campo. */
+  const corregirItem = (sid: string, iid: string, valor: string) => {
+    const fixed = autocorregir(valor);
+    if (fixed !== valor) {
+      updateItem(sid, iid, { descripcion: fixed });
+      toast.success("Ortografía corregida", { description: fixed });
+    }
+  };
+
   const asesoresDisponibles = ASESORES.filter((a) => a !== data.asesor_nombre);
+
 
   const nuevaCotizacion = (avanzar: boolean) => {
     const next = avanzar ? seqRef.current + 1 : seqRef.current;
