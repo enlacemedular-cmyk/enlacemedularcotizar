@@ -75,6 +75,18 @@ function readSeq(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : 1;
 }
 
+const cuentasBase = (): Cuenta[] => [
+  {
+    id: uid(),
+    entidad: "Bancolombia",
+    tipo: "Ahorros",
+    numero: "",
+    titular: "Cesar Augusto Medina Valderrama",
+    nit: "",
+  },
+  { id: uid(), entidad: "Nequi", tipo: "Nequi", numero: "", titular: "Cesar Augusto Medina Valderrama", nit: "" },
+];
+
 function baseCotizacion(numero: string): Cotizacion {
   return {
     cotizacion_numero: numero,
@@ -88,12 +100,16 @@ function baseCotizacion(numero: string): Cotizacion {
     proyecto_nombre: "",
     proyecto_ubicacion: "",
     asesor_nombre: ASESORES[0],
+    asesor_cargo: "Asesor Comercial",
+    asesor_telefono: "",
+    asesor_email: "",
     asesores_adicionales: [],
     iva_porcentaje: 19,
     pagos: [
       { id: uid(), concepto: "Anticipo", porcentaje: 50 },
       { id: uid(), concepto: "Contra entrega", porcentaje: 50 },
     ],
+    cuentas: cuentasBase(),
     entrega_dias: 30,
     entrega_tipo: ENTREGA_TIPOS[0],
     entrega_base: ENTREGA_BASES[0],
@@ -101,6 +117,7 @@ function baseCotizacion(numero: string): Cotizacion {
     secciones: [{ id: uid(), nombre: "Fase 1", items: [emptyItem()] }],
   };
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
