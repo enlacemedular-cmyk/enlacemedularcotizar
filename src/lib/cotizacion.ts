@@ -254,32 +254,65 @@ export function buildHtmlDocument(data: Cotizacion) {
     ? `<p style="font-size: 13px; color: #4B5563; margin: 2px 0 0 0;">Asesores: ${esc(data.asesores_adicionales.filter(Boolean).join(", "))}</p>`
     : "";
 
+  const cuentas = data.cuentas.filter((c) => c.numero.trim() || c.entidad.trim());
+  const cuentasHtml = cuentas.length
+    ? cuentas
+        .map(
+          (c) => `<p style="font-size: 11px; color: #4B5563; margin: 0 0 3px 0; line-height:1.5;">
+            <strong style="color:#111827;">${esc(c.entidad)}</strong>${c.tipo ? ` · ${esc(c.tipo)}` : ""} Nº ${esc(c.numero)}<br/>
+            <span style="color:#6B7280;">Titular: ${esc(c.titular)}${c.nit ? ` · NIT/CC ${esc(c.nit)}` : ""}</span>
+          </p>`,
+        )
+        .join("")
+    : `<p style="font-size: 11px; color: #9CA3AF; margin: 0;">Datos bancarios pendientes.</p>`;
+
+  const firmaUrl = FIRMAS[data.asesor_nombre] ?? "";
+  const firmaImg = firmaUrl
+    ? `<img src="${firmaUrl}" alt="Firma ${esc(data.asesor_nombre)}" style="height: 64px; width:auto; display:block; margin-bottom:-6px;" />`
+    : `<div style="height: 64px;"></div>`;
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Cotización ${esc(data.cotizacion_numero)} - MEDULAR</title>
 <style>
+  @page { size: A4; margin: 14mm 10mm; }
+  .watermark {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 62%;
+    opacity: 0.035;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .page { position: relative; z-index: 1; }
+  .avoid-break { page-break-inside: avoid; }
   @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .page { box-shadow: none !important; margin: 0 !important; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background:#FFFFFF !important; }
+    .page { box-shadow: none !important; margin: 0 !important; max-width:none !important; padding-bottom: 0 !important; }
+    .watermark { opacity: 0.05; }
   }
 </style>
 </head>
 <body style="margin:0; padding:0; background:#E5E7EB; font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-<div class="page" style="max-width: 850px; margin: 30px auto; background:#FFFFFF; box-shadow: 0 4px 24px rgba(34,37,42,0.12); padding: 0 0 40px 0;">
+<img class="watermark" src="${LOGO_IMAGOTIPO}" alt="" />
+<div class="page" style="max-width: 850px; margin: 30px auto; background:transparent; box-shadow: 0 4px 24px rgba(34,37,42,0.12); padding: 0 0 40px 0;">
 
-  <div style="padding: 40px 48px 24px 48px; border-bottom: 3px solid #C59B27; display:table; width:100%; box-sizing:border-box;">
-    <div style="display:table-cell; vertical-align:middle; width:55%;">
-      <img src="${LOGO_ISOLOGO}" alt="MEDULAR" style="max-width: 160px; height: auto; display: block;" />
+  <div style="padding: 32px 48px 20px 48px; border-bottom: 3px solid #C59B27; display:table; width:100%; box-sizing:border-box;">
+    <div style="display:table-cell; vertical-align:middle; width:52%;">
+      <img src="${LOGO_ISOLOGO}" alt="MEDULAR" style="width: 190px; max-width: 100%; height: auto; display: block; object-fit: contain;" />
+      <p style="font-size: 10px; color:#9CA3AF; margin: 8px 0 0 0; letter-spacing:1px; text-transform:uppercase;">Construcción · Diseño · Remodelación</p>
     </div>
-    <div style="display:table-cell; vertical-align:middle; width:45%; text-align:right;">
+    <div style="display:table-cell; vertical-align:middle; width:48%; text-align:right;">
       <span style="font-size: 24px; font-weight: 800; color: #111827; letter-spacing: -0.5px; display:block;">COTIZACIÓN</span>
       <span style="font-size: 14px; font-weight: 600; color: #C59B27; display:block; margin-top:4px;">Nº ${esc(data.cotizacion_numero)}</span>
       <span style="font-size: 12px; color: #6B7280; display:block; margin-top:6px;">Fecha: ${esc(data.fecha_emision)}</span>
       <span style="font-size: 12px; color: #6B7280; display:block;">Válido hasta: ${esc(data.fecha_vencimiento)}</span>
     </div>
   </div>
+
 
   <div style="padding: 32px 48px; display:table; width:100%; box-sizing:border-box; background:#F9FAFB; border-bottom: 1px solid #E5E7EB;">
     <div style="display:table-cell; width:50%; vertical-align:top;">
