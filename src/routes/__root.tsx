@@ -79,21 +79,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MEDULAR | Cotizaciones Comerciales" },
+      { title: "MEDULAR | Generador de Cotizaciones Comerciales" },
       {
         name: "description",
         content:
-          "Generador de cotizaciones comerciales MEDULAR: construcción, diseño y remodelación.",
+          "Formulario avanzado para crear, enviar y descargar cotizaciones comerciales de construcción, diseño y remodelación MEDULAR.",
       },
       { name: "author", content: "MEDULAR" },
-      { property: "og:title", content: "MEDULAR | Cotizaciones Comerciales" },
+      { property: "og:title", content: "MEDULAR | Generador de Cotizaciones Comerciales" },
       {
         property: "og:description",
         content:
-          "Generador de cotizaciones comerciales MEDULAR: construcción, diseño y remodelación.",
+          "Formulario avanzado para crear, enviar y descargar cotizaciones comerciales de construcción, diseño y remodelación MEDULAR.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "MEDULAR | Generador de Cotizaciones Comerciales" },
+      { name: "twitter:description", content: "Formulario avanzado para crear, enviar y descargar cotizaciones comerciales de construcción, diseño y remodelación MEDULAR." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/67d1948d-fcf3-4628-be88-f2d341656d45/id-preview-c855d803--1c656746-f29a-46b2-b8ca-ba4684b62c86.lovable.app-1785200872473.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/67d1948d-fcf3-4628-be88-f2d341656d45/id-preview-c855d803--1c656746-f29a-46b2-b8ca-ba4684b62c86.lovable.app-1785200872473.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },

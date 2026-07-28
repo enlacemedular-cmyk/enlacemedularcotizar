@@ -51,18 +51,18 @@ export const Route = createFileRoute("/")({
         content:
           "Formulario avanzado para crear, enviar y descargar cotizaciones comerciales de construcción, diseño y remodelación MEDULAR.",
       },
-      { property: "og:title", content: "MEDULAR | Generador de Cotizaciones" },
+      { property: "og:title", content: "MEDULAR | Generador de Cotizaciones Comerciales" },
       {
         property: "og:description",
         content:
-          "Crea cotizaciones profesionales con secciones e ítems dinámicos, cálculo automático de IVA y descarga instantánea.",
+          "Formulario avanzado para crear, enviar y descargar cotizaciones comerciales de construcción, diseño y remodelación MEDULAR.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:image", content: LOGO_ISOLOGO },
       { name: "twitter:image", content: LOGO_ISOLOGO },
     ],
-    links: [{ rel: "icon", href: LOGO_IMAGOTIPO, type: "image/png" }],
+    links: [{ rel: "icon", href: "https://imglink.cc/cdn/ImDpSCV78S.png", type: "image/png" }],
   }),
   component: App,
 });
