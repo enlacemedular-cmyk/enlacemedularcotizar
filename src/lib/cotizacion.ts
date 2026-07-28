@@ -17,6 +17,15 @@ export interface Pago {
   porcentaje: number;
 }
 
+export interface Cuenta {
+  id: string;
+  entidad: string;
+  tipo: string;
+  numero: string;
+  titular: string;
+  nit: string;
+}
+
 export interface Cotizacion {
   cotizacion_numero: string;
   fecha_emision: string;
@@ -29,9 +38,13 @@ export interface Cotizacion {
   proyecto_nombre: string;
   proyecto_ubicacion: string;
   asesor_nombre: string;
+  asesor_cargo: string;
+  asesor_telefono: string;
+  asesor_email: string;
   asesores_adicionales: string[];
   iva_porcentaje: number;
   pagos: Pago[];
+  cuentas: Cuenta[];
   entrega_dias: number;
   entrega_tipo: string;
   entrega_base: string;
@@ -41,11 +54,20 @@ export interface Cotizacion {
 
 export const LOGO_ISOLOGO = "https://imglink.cc/cdn/ZF7ejqiY89.png";
 export const LOGO_IMAGOTIPO = "https://imglink.cc/cdn/ImDpSCV78S.png";
+export const FIRMA_CESAR = "https://imglink.cc/cdn/fbiloESNBc.png";
 
 export const ASESORES = [
   "Cesar Augusto Medina Valderrama",
   "Laura Valentina Medina Rojas",
 ];
+
+/** Firmas escaneadas por asesor. */
+export const FIRMAS: Record<string, string> = {
+  "Cesar Augusto Medina Valderrama": FIRMA_CESAR,
+};
+
+export const ENTIDADES = ["Bancolombia", "Nequi", "Davivienda", "Daviplata", "Banco de Bogotá", "Otro"];
+export const TIPOS_CUENTA = ["Ahorros", "Corriente", "Nequi", "Daviplata"];
 
 export const ENTREGA_TIPOS = ["días hábiles", "días calendario", "semanas"];
 export const ENTREGA_BASES = [
@@ -54,6 +76,7 @@ export const ENTREGA_BASES = [
   "contados a partir de la aprobación de diseños",
   "contados a partir de la entrega del sitio de obra",
 ];
+
 
 export const formatCOP = (n: number) =>
   new Intl.NumberFormat("es-CO", {
