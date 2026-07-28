@@ -14,9 +14,12 @@ import {
 } from "@/components/ui/select";
 import {
   type Cotizacion,
+  type Cuenta,
   type Item,
   type Pago,
   ASESORES,
+  ENTIDADES,
+  TIPOS_CUENTA,
   ENTREGA_BASES,
   ENTREGA_TIPOS,
   buildHtmlDocument,
@@ -32,6 +35,8 @@ import {
   LOGO_ISOLOGO,
   LOGO_IMAGOTIPO,
 } from "@/lib/cotizacion";
+import { autocorregir } from "@/lib/autocorrect";
+
 
 const WEBHOOK = "https://hook.us2.make.com/aimmobwgqp7wanb2y5o96ic4v5ej6cjc";
 const DRAFT_KEY = "medular.cotizacion.draft";
