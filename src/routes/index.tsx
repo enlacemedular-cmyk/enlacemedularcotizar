@@ -14,9 +14,12 @@ import {
 } from "@/components/ui/select";
 import {
   type Cotizacion,
+  type Cuenta,
   type Item,
   type Pago,
   ASESORES,
+  ENTIDADES,
+  TIPOS_CUENTA,
   ENTREGA_BASES,
   ENTREGA_TIPOS,
   buildHtmlDocument,
@@ -32,6 +35,8 @@ import {
   LOGO_ISOLOGO,
   LOGO_IMAGOTIPO,
 } from "@/lib/cotizacion";
+import { autocorregir } from "@/lib/autocorrect";
+
 
 const WEBHOOK = "https://hook.us2.make.com/aimmobwgqp7wanb2y5o96ic4v5ej6cjc";
 const DRAFT_KEY = "medular.cotizacion.draft";
@@ -75,6 +80,18 @@ function readSeq(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : 1;
 }
 
+const cuentasBase = (): Cuenta[] => [
+  {
+    id: uid(),
+    entidad: "Bancolombia",
+    tipo: "Ahorros",
+    numero: "",
+    titular: "Cesar Augusto Medina Valderrama",
+    nit: "",
+  },
+  { id: uid(), entidad: "Nequi", tipo: "Nequi", numero: "", titular: "Cesar Augusto Medina Valderrama", nit: "" },
+];
+
 function baseCotizacion(numero: string): Cotizacion {
   return {
     cotizacion_numero: numero,
@@ -88,12 +105,16 @@ function baseCotizacion(numero: string): Cotizacion {
     proyecto_nombre: "",
     proyecto_ubicacion: "",
     asesor_nombre: ASESORES[0],
+    asesor_cargo: "Asesor Comercial",
+    asesor_telefono: "",
+    asesor_email: "",
     asesores_adicionales: [],
     iva_porcentaje: 19,
     pagos: [
       { id: uid(), concepto: "Anticipo", porcentaje: 50 },
       { id: uid(), concepto: "Contra entrega", porcentaje: 50 },
     ],
+    cuentas: cuentasBase(),
     entrega_dias: 30,
     entrega_tipo: ENTREGA_TIPOS[0],
     entrega_base: ENTREGA_BASES[0],
@@ -101,6 +122,7 @@ function baseCotizacion(numero: string): Cotizacion {
     secciones: [{ id: uid(), nombre: "Fase 1", items: [emptyItem()] }],
   };
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -238,7 +260,33 @@ function App() {
       pagos: d.pagos.map((p) => (p.id === id ? { ...p, ...patch } : p)),
     }));
 
+  const addCuenta = () =>
+    setData((d) => ({
+      ...d,
+      cuentas: [
+        ...d.cuentas,
+        { id: uid(), entidad: ENTIDADES[0], tipo: TIPOS_CUENTA[0], numero: "", titular: d.asesor_nombre, nit: "" },
+      ],
+    }));
+  const removeCuenta = (id: string) =>
+    setData((d) => ({ ...d, cuentas: d.cuentas.filter((c) => c.id !== id) }));
+  const updateCuenta = (id: string, patch: Partial<Cuenta>) =>
+    setData((d) => ({
+      ...d,
+      cuentas: d.cuentas.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    }));
+
+  /** Autocorrige ortografía/redacción al salir del campo. */
+  const corregirItem = (sid: string, iid: string, valor: string) => {
+    const fixed = autocorregir(valor);
+    if (fixed !== valor) {
+      updateItem(sid, iid, { descripcion: fixed });
+      toast.success("Ortografía corregida", { description: fixed });
+    }
+  };
+
   const asesoresDisponibles = ASESORES.filter((a) => a !== data.asesor_nombre);
+
 
   const nuevaCotizacion = (avanzar: boolean) => {
     const next = avanzar ? seqRef.current + 1 : seqRef.current;
@@ -276,17 +324,46 @@ function App() {
 
   const handleDownload = () => {
     const html = buildHtmlDocument(data);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Cotizacion-${data.cotizacion_numero || "MEDULAR"}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Archivo descargado", {
-      description: "Ábrelo e imprime como PDF si lo necesitas.",
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      setTimeout(() => iframe.remove(), 1000);
+    };
+
+    iframe.onload = () => {
+      const win = iframe.contentWindow;
+      if (!win) return cleanup();
+      const done = () => {
+        win.focus();
+        win.print();
+        cleanup();
+      };
+      const imgs = Array.from(win.document.images);
+      Promise.all(
+        imgs.map((img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise<void>((res) => {
+                img.onload = () => res();
+                img.onerror = () => res();
+              }),
+        ),
+      ).then(() => setTimeout(done, 350));
+    };
+
+    iframe.srcdoc = html;
+    toast.success("Generando PDF", {
+      description: `Elige "Guardar como PDF" en el diálogo de impresión.`,
     });
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-44">
@@ -418,6 +495,30 @@ function App() {
             </Field>
           </div>
 
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field label="Cargo del asesor">
+              <Input
+                value={data.asesor_cargo}
+                onChange={(e) => set("asesor_cargo", e.target.value)}
+                placeholder="Ej. Asesor Comercial"
+              />
+            </Field>
+            <Field label="Teléfono del asesor">
+              <Input
+                value={data.asesor_telefono}
+                onChange={(e) => set("asesor_telefono", e.target.value)}
+              />
+            </Field>
+            <Field label="Email del asesor">
+              <Input
+                type="email"
+                value={data.asesor_email}
+                onChange={(e) => set("asesor_email", e.target.value)}
+              />
+            </Field>
+          </div>
+
+
           <div className="mt-4 space-y-3">
             {data.asesores_adicionales.map((a, idx) => (
               <div key={idx} className="flex items-end gap-3">
@@ -523,9 +624,14 @@ function App() {
                         <Input
                           value={i.descripcion}
                           onChange={(e) => updateItem(s.id, i.id, { descripcion: e.target.value })}
-                          placeholder="Descripción del ítem"
+                          onBlur={(e) => corregirItem(s.id, i.id, e.target.value)}
+                          spellCheck
+                          lang="es"
+                          autoCapitalize="sentences"
+                          placeholder="Descripción del ítem (se corrige automáticamente)"
                         />
                       </Field>
+
                       <Field label="Cantidad">
                         <Input
                           type="number"
@@ -730,7 +836,92 @@ function App() {
             {entregaTexto(data)}
           </p>
         </Section>
+
+        <Section
+          title="Datos bancarios (firma del asesor)"
+          step="8"
+          action={
+            <Button type="button" variant="outlineAccent" size="sm" onClick={addCuenta}>
+              <Plus className="size-4" /> Añadir cuenta
+            </Button>
+          }
+        >
+          <div className="space-y-3">
+            {data.cuentas.map((c) => (
+              <div
+                key={c.id}
+                className="grid grid-cols-1 items-end gap-3 rounded-md border border-border bg-secondary/40 p-3 sm:grid-cols-[160px_140px_1fr_1fr_40px]"
+              >
+                <Field label="Entidad">
+                  <Select value={c.entidad} onValueChange={(v) => updateCuenta(c.id, { entidad: v })}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENTIDADES.map((e) => (
+                        <SelectItem key={e} value={e}>
+                          {e}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Tipo">
+                  <Select value={c.tipo} onValueChange={(v) => updateCuenta(c.id, { tipo: v })}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_CUENTA.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Número de cuenta / celular">
+                  <Input
+                    value={c.numero}
+                    onChange={(e) => updateCuenta(c.id, { numero: e.target.value })}
+                    placeholder="Ej. 123-456789-00"
+                    className="bg-card"
+                  />
+                </Field>
+                <Field label="Titular / NIT">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      value={c.titular}
+                      onChange={(e) => updateCuenta(c.id, { titular: e.target.value })}
+                      placeholder="Titular"
+                      className="bg-card"
+                    />
+                    <Input
+                      value={c.nit}
+                      onChange={(e) => updateCuenta(c.id, { nit: e.target.value })}
+                      placeholder="NIT / CC"
+                      className="bg-card"
+                    />
+                  </div>
+                </Field>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Eliminar cuenta"
+                  onClick={() => removeCuenta(c.id)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Estos datos aparecen bajo la firma del asesor en el PDF descargable.
+          </p>
+        </Section>
       </main>
+
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -750,7 +941,7 @@ function App() {
               <RotateCcw className="size-4" /> Limpiar
             </Button>
             <Button type="button" variant="outlineAccent" onClick={handleDownload}>
-              <Download className="size-4" /> Descargar
+              <Download className="size-4" /> Descargar PDF
             </Button>
             <Button
               type="button"

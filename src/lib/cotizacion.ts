@@ -17,6 +17,15 @@ export interface Pago {
   porcentaje: number;
 }
 
+export interface Cuenta {
+  id: string;
+  entidad: string;
+  tipo: string;
+  numero: string;
+  titular: string;
+  nit: string;
+}
+
 export interface Cotizacion {
   cotizacion_numero: string;
   fecha_emision: string;
@@ -29,9 +38,13 @@ export interface Cotizacion {
   proyecto_nombre: string;
   proyecto_ubicacion: string;
   asesor_nombre: string;
+  asesor_cargo: string;
+  asesor_telefono: string;
+  asesor_email: string;
   asesores_adicionales: string[];
   iva_porcentaje: number;
   pagos: Pago[];
+  cuentas: Cuenta[];
   entrega_dias: number;
   entrega_tipo: string;
   entrega_base: string;
@@ -41,11 +54,20 @@ export interface Cotizacion {
 
 export const LOGO_ISOLOGO = "https://imglink.cc/cdn/ZF7ejqiY89.png";
 export const LOGO_IMAGOTIPO = "https://imglink.cc/cdn/ImDpSCV78S.png";
+export const FIRMA_CESAR = "https://imglink.cc/cdn/fbiloESNBc.png";
 
 export const ASESORES = [
   "Cesar Augusto Medina Valderrama",
   "Laura Valentina Medina Rojas",
 ];
+
+/** Firmas escaneadas por asesor. */
+export const FIRMAS: Record<string, string> = {
+  "Cesar Augusto Medina Valderrama": FIRMA_CESAR,
+};
+
+export const ENTIDADES = ["Bancolombia", "Nequi", "Davivienda", "Daviplata", "Banco de Bogotá", "Otro"];
+export const TIPOS_CUENTA = ["Ahorros", "Corriente", "Nequi", "Daviplata"];
 
 export const ENTREGA_TIPOS = ["días hábiles", "días calendario", "semanas"];
 export const ENTREGA_BASES = [
@@ -54,6 +76,7 @@ export const ENTREGA_BASES = [
   "contados a partir de la aprobación de diseños",
   "contados a partir de la entrega del sitio de obra",
 ];
+
 
 export const formatCOP = (n: number) =>
   new Intl.NumberFormat("es-CO", {
@@ -136,7 +159,18 @@ export function buildPayload(data: Cotizacion) {
     proyecto_nombre: data.proyecto_nombre,
     proyecto_ubicacion: data.proyecto_ubicacion,
     asesor_nombre: data.asesor_nombre,
+    asesor_cargo: data.asesor_cargo,
+    asesor_telefono: data.asesor_telefono,
+    asesor_email: data.asesor_email,
+    asesor_firma_url: FIRMAS[data.asesor_nombre] ?? "",
     asesores_adicionales: data.asesores_adicionales,
+    cuentas_bancarias: data.cuentas.map((c) => ({
+      cuenta_entidad: c.entidad,
+      cuenta_tipo: c.tipo,
+      cuenta_numero: c.numero,
+      cuenta_titular: c.titular,
+      cuenta_nit: c.nit,
+    })),
     condiciones_pago: condicionesTexto(data),
     condiciones_pago_items: data.pagos.map((p) => ({
       pago_concepto: p.concepto,
@@ -181,7 +215,7 @@ export function buildHtmlDocument(data: Cotizacion) {
   const secciones = data.secciones
     .map(
       (s) => `
-    <div style="margin-bottom: 24px;">
+    <div class="avoid-break" style="margin-bottom: 24px;">
       <div style="background: #111827; color: #FFFFFF; padding: 10px 16px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 4px 4px 0 0;">${esc(s.nombre)}</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <thead>
@@ -220,32 +254,65 @@ export function buildHtmlDocument(data: Cotizacion) {
     ? `<p style="font-size: 13px; color: #4B5563; margin: 2px 0 0 0;">Asesores: ${esc(data.asesores_adicionales.filter(Boolean).join(", "))}</p>`
     : "";
 
+  const cuentas = data.cuentas.filter((c) => c.numero.trim() || c.entidad.trim());
+  const cuentasHtml = cuentas.length
+    ? cuentas
+        .map(
+          (c) => `<p style="font-size: 11px; color: #4B5563; margin: 0 0 3px 0; line-height:1.5;">
+            <strong style="color:#111827;">${esc(c.entidad)}</strong>${c.tipo ? ` · ${esc(c.tipo)}` : ""} Nº ${esc(c.numero)}<br/>
+            <span style="color:#6B7280;">Titular: ${esc(c.titular)}${c.nit ? ` · NIT/CC ${esc(c.nit)}` : ""}</span>
+          </p>`,
+        )
+        .join("")
+    : `<p style="font-size: 11px; color: #9CA3AF; margin: 0;">Datos bancarios pendientes.</p>`;
+
+  const firmaUrl = FIRMAS[data.asesor_nombre] ?? "";
+  const firmaImg = firmaUrl
+    ? `<img src="${firmaUrl}" alt="Firma ${esc(data.asesor_nombre)}" style="height: 64px; width:auto; display:block; margin-bottom:-6px;" />`
+    : `<div style="height: 64px;"></div>`;
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Cotización ${esc(data.cotizacion_numero)} - MEDULAR</title>
 <style>
+  @page { size: A4; margin: 14mm 10mm; }
+  .watermark {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 62%;
+    opacity: 0.035;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .page { position: relative; z-index: 1; }
+  .avoid-break { page-break-inside: avoid; }
   @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .page { box-shadow: none !important; margin: 0 !important; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background:#FFFFFF !important; }
+    .page { box-shadow: none !important; margin: 0 !important; max-width:none !important; padding-bottom: 0 !important; }
+    .watermark { opacity: 0.05; }
   }
 </style>
 </head>
-<body style="margin:0; padding:0; background:#E5E7EB; font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-<div class="page" style="max-width: 850px; margin: 30px auto; background:#FFFFFF; box-shadow: 0 4px 24px rgba(34,37,42,0.12); padding: 0 0 40px 0;">
+<body style="margin:0; padding:0; background:#FFFFFF; font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+<img class="watermark" src="${LOGO_IMAGOTIPO}" alt="" />
+<div class="page" style="max-width: 850px; margin: 30px auto; background:transparent; box-shadow: 0 4px 24px rgba(34,37,42,0.12); padding: 0 0 40px 0;">
 
-  <div style="padding: 40px 48px 24px 48px; border-bottom: 3px solid #C59B27; display:table; width:100%; box-sizing:border-box;">
-    <div style="display:table-cell; vertical-align:middle; width:55%;">
-      <img src="${LOGO_ISOLOGO}" alt="MEDULAR" style="max-width: 160px; height: auto; display: block;" />
+  <div style="padding: 32px 48px 20px 48px; border-bottom: 3px solid #C59B27; display:table; width:100%; box-sizing:border-box;">
+    <div style="display:table-cell; vertical-align:middle; width:52%;">
+      <img src="${LOGO_ISOLOGO}" alt="MEDULAR" style="width: 190px; max-width: 100%; height: auto; display: block; object-fit: contain;" />
+      <p style="font-size: 10px; color:#9CA3AF; margin: 8px 0 0 0; letter-spacing:1px; text-transform:uppercase;">Construcción · Diseño · Remodelación</p>
     </div>
-    <div style="display:table-cell; vertical-align:middle; width:45%; text-align:right;">
+    <div style="display:table-cell; vertical-align:middle; width:48%; text-align:right;">
       <span style="font-size: 24px; font-weight: 800; color: #111827; letter-spacing: -0.5px; display:block;">COTIZACIÓN</span>
       <span style="font-size: 14px; font-weight: 600; color: #C59B27; display:block; margin-top:4px;">Nº ${esc(data.cotizacion_numero)}</span>
       <span style="font-size: 12px; color: #6B7280; display:block; margin-top:6px;">Fecha: ${esc(data.fecha_emision)}</span>
       <span style="font-size: 12px; color: #6B7280; display:block;">Válido hasta: ${esc(data.fecha_vencimiento)}</span>
     </div>
   </div>
+
 
   <div style="padding: 32px 48px; display:table; width:100%; box-sizing:border-box; background:#F9FAFB; border-bottom: 1px solid #E5E7EB;">
     <div style="display:table-cell; width:50%; vertical-align:top;">
@@ -295,20 +362,28 @@ export function buildHtmlDocument(data: Cotizacion) {
       <p style="margin: 0;"><strong style="color: #374151;">Validez de la oferta:</strong> ${esc(validezTexto(data))}</p>
     </div>
 
-    <div style="margin-top: 60px; display:table; width:100%;">
-      <div style="display:table-cell; width:50%;">
-        <div style="border-top: 1px solid #9CA3AF; width: 220px; padding-top: 8px;">
-          <p style="font-size: 13px; font-weight: 600; color: #111827; margin: 0;">MEDULAR</p>
-          <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">Aceptación / Comercial</p>
+    <div class="avoid-break" style="margin-top: 48px; display:table; width:100%;">
+      <div style="display:table-cell; width:52%; vertical-align:bottom;">
+        ${firmaImg}
+        <div style="border-top: 1px solid #9CA3AF; width: 280px; padding-top: 8px;">
+          <p style="font-size: 13px; font-weight: 700; color: #111827; margin: 0;">${esc(data.asesor_nombre)}</p>
+          <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">${esc(data.asesor_cargo || "Asesor Comercial")} · MEDULAR</p>
+          ${data.asesor_telefono ? `<p style="font-size: 11px; color: #6B7280; margin: 1px 0 0 0;">Tel: ${esc(data.asesor_telefono)}</p>` : ""}
+          ${data.asesor_email ? `<p style="font-size: 11px; color: #6B7280; margin: 1px 0 0 0;">${esc(data.asesor_email)}</p>` : ""}
+          <div style="margin-top: 12px; border-left: 3px solid #C59B27; padding-left: 10px;">
+            <p style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #9CA3AF; margin: 0 0 5px 0;">Datos para transferencia</p>
+            ${cuentasHtml}
+          </div>
         </div>
       </div>
-      <div style="display:table-cell; width:50%; text-align:right;">
-        <div style="border-top: 1px solid #9CA3AF; width: 220px; padding-top: 8px; margin-left: auto;">
+      <div style="display:table-cell; width:48%; text-align:right; vertical-align:bottom;">
+        <div style="border-top: 1px solid #9CA3AF; width: 240px; padding-top: 8px; margin-left: auto;">
           <p style="font-size: 13px; font-weight: 600; color: #111827; margin: 0;">${esc(data.cliente_nombre)}</p>
           <p style="font-size: 11px; color: #6B7280; margin: 2px 0 0 0;">Aceptado por el Cliente</p>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 </body>
