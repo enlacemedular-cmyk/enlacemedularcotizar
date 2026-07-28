@@ -941,7 +941,7 @@ function App() {
               <RotateCcw className="size-4" /> Limpiar
             </Button>
             <Button type="button" variant="outlineAccent" onClick={handleDownload}>
-              <Download className="size-4" /> Descargar
+              <Download className="size-4" /> Descargar PDF
             </Button>
             <Button
               type="button"
