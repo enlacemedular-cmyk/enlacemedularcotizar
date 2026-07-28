@@ -836,7 +836,92 @@ function App() {
             {entregaTexto(data)}
           </p>
         </Section>
+
+        <Section
+          title="Datos bancarios (firma del asesor)"
+          step="8"
+          action={
+            <Button type="button" variant="outlineAccent" size="sm" onClick={addCuenta}>
+              <Plus className="size-4" /> Añadir cuenta
+            </Button>
+          }
+        >
+          <div className="space-y-3">
+            {data.cuentas.map((c) => (
+              <div
+                key={c.id}
+                className="grid grid-cols-1 items-end gap-3 rounded-md border border-border bg-secondary/40 p-3 sm:grid-cols-[160px_140px_1fr_1fr_40px]"
+              >
+                <Field label="Entidad">
+                  <Select value={c.entidad} onValueChange={(v) => updateCuenta(c.id, { entidad: v })}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENTIDADES.map((e) => (
+                        <SelectItem key={e} value={e}>
+                          {e}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Tipo">
+                  <Select value={c.tipo} onValueChange={(v) => updateCuenta(c.id, { tipo: v })}>
+                    <SelectTrigger className="bg-card">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_CUENTA.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Número de cuenta / celular">
+                  <Input
+                    value={c.numero}
+                    onChange={(e) => updateCuenta(c.id, { numero: e.target.value })}
+                    placeholder="Ej. 123-456789-00"
+                    className="bg-card"
+                  />
+                </Field>
+                <Field label="Titular / NIT">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      value={c.titular}
+                      onChange={(e) => updateCuenta(c.id, { titular: e.target.value })}
+                      placeholder="Titular"
+                      className="bg-card"
+                    />
+                    <Input
+                      value={c.nit}
+                      onChange={(e) => updateCuenta(c.id, { nit: e.target.value })}
+                      placeholder="NIT / CC"
+                      className="bg-card"
+                    />
+                  </div>
+                </Field>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Eliminar cuenta"
+                  onClick={() => removeCuenta(c.id)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Estos datos aparecen bajo la firma del asesor en el PDF descargable.
+          </p>
+        </Section>
       </main>
+
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
