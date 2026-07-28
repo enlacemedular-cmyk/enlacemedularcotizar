@@ -495,6 +495,30 @@ function App() {
             </Field>
           </div>
 
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field label="Cargo del asesor">
+              <Input
+                value={data.asesor_cargo}
+                onChange={(e) => set("asesor_cargo", e.target.value)}
+                placeholder="Ej. Asesor Comercial"
+              />
+            </Field>
+            <Field label="Teléfono del asesor">
+              <Input
+                value={data.asesor_telefono}
+                onChange={(e) => set("asesor_telefono", e.target.value)}
+              />
+            </Field>
+            <Field label="Email del asesor">
+              <Input
+                type="email"
+                value={data.asesor_email}
+                onChange={(e) => set("asesor_email", e.target.value)}
+              />
+            </Field>
+          </div>
+
+
           <div className="mt-4 space-y-3">
             {data.asesores_adicionales.map((a, idx) => (
               <div key={idx} className="flex items-end gap-3">
