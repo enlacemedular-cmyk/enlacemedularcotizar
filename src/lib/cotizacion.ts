@@ -159,7 +159,18 @@ export function buildPayload(data: Cotizacion) {
     proyecto_nombre: data.proyecto_nombre,
     proyecto_ubicacion: data.proyecto_ubicacion,
     asesor_nombre: data.asesor_nombre,
+    asesor_cargo: data.asesor_cargo,
+    asesor_telefono: data.asesor_telefono,
+    asesor_email: data.asesor_email,
+    asesor_firma_url: FIRMAS[data.asesor_nombre] ?? "",
     asesores_adicionales: data.asesores_adicionales,
+    cuentas_bancarias: data.cuentas.map((c) => ({
+      cuenta_entidad: c.entidad,
+      cuenta_tipo: c.tipo,
+      cuenta_numero: c.numero,
+      cuenta_titular: c.titular,
+      cuenta_nit: c.nit,
+    })),
     condiciones_pago: condicionesTexto(data),
     condiciones_pago_items: data.pagos.map((p) => ({
       pago_concepto: p.concepto,
