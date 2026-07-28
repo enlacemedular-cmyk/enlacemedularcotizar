@@ -215,7 +215,7 @@ export function buildHtmlDocument(data: Cotizacion) {
   const secciones = data.secciones
     .map(
       (s) => `
-    <div style="margin-bottom: 24px;">
+    <div class="avoid-break" style="margin-bottom: 24px;">
       <div style="background: #111827; color: #FFFFFF; padding: 10px 16px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 4px 4px 0 0;">${esc(s.nombre)}</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <thead>
