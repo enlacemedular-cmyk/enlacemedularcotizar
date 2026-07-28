@@ -600,9 +600,14 @@ function App() {
                         <Input
                           value={i.descripcion}
                           onChange={(e) => updateItem(s.id, i.id, { descripcion: e.target.value })}
-                          placeholder="Descripción del ítem"
+                          onBlur={(e) => corregirItem(s.id, i.id, e.target.value)}
+                          spellCheck
+                          lang="es"
+                          autoCapitalize="sentences"
+                          placeholder="Descripción del ítem (se corrige automáticamente)"
                         />
                       </Field>
+
                       <Field label="Cantidad">
                         <Input
                           type="number"
