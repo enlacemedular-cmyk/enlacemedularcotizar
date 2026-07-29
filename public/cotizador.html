@@ -1425,37 +1425,54 @@ async function downloadPDF(){
   setStatus('Generando PDF...');
   await preloadImages();
   const area = document.getElementById('print-area');
-  area.innerHTML = '';
-  /* El elemento que se pasa a html2pdf debe estar EN FLUJO (position:static).
-     Si está posicionado (absolute/fixed) el contenedor interno de la librería
-     colapsa a 0 px de alto y el PDF sale en blanco. */
-  const src = document.createElement('div');
-  src.style.cssText = 'position:static;width:794px;background:#ffffff;';
-  src.innerHTML = buildQuoteHTML();
-  area.appendChild(src);
+  area.innerHTML = buildQuoteHTML();
   await waitForImagesIn(area);
   const numero = document.getElementById('f_numero').value || 'cotizacion';
 
   if(typeof html2pdf === 'undefined'){
+    // Respaldo si la librería no cargó (ej. bloqueada por el navegador/red): usa impresión nativa.
     setStatus('Abriendo diálogo de impresión — elige "Guardar como PDF".');
     window.print();
     return;
   }
+
+  /* html2canvas no captura bien elementos posicionados muy fuera de pantalla
+     (left:-9999px). Por eso lo traemos temporalmente dentro del viewport real
+     (position:fixed; top:0; left:0) y lo tapamos con una capa blanca opaca
+     por encima para que el usuario no lo vea parpadear. */
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#ffffff;z-index:999998;';
+  document.body.appendChild(overlay);
+
+  const prevPosition = area.style.position;
+  const prevLeft = area.style.left;
+  const prevTop = area.style.top;
+  const prevZ = area.style.zIndex;
+  area.style.position = 'fixed';
+  area.style.left = '0';
+  area.style.top = '0';
+  area.style.zIndex = '999997';
 
   try{
     await html2pdf().set({
       margin: 0,
       filename: `Cotizacion_MEDULAR_${numero}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794, x: 0, y: 0, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
-    }).from(src).save();
+    }).from(area).save();
     setStatus('PDF descargado ✓', 'ok');
   }catch(err){
     console.error(err);
     setStatus('No se pudo generar el PDF automáticamente. Abriendo impresión como respaldo...', 'err');
     setTimeout(()=>window.print(), 400);
+  }finally{
+    area.style.position = prevPosition;
+    area.style.left = prevLeft;
+    area.style.top = prevTop;
+    area.style.zIndex = prevZ;
+    overlay.remove();
   }
 }
 
