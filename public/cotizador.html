@@ -568,14 +568,47 @@ function removeItem(id){
   saveState();
 }
 /* Actualiza texto/números sin reconstruir el DOM (evita perder el foco al escribir) */
-/* Pequeño "autocorrector": pone en mayúscula la primera letra de la descripción
-   al salir del campo, para ayudar a que el texto quede bien redactado. */
+/* Autocorrector de ortografía y redacción para las descripciones de los ítems. */
+const AUTOCORRECT = {
+  demolicion:"demolición", instalacion:"instalación", construccion:"construcción", remodelacion:"remodelación",
+  adecuacion:"adecuación", iluminacion:"iluminación", ventilacion:"ventilación", cimentacion:"cimentación",
+  impermeabilizacion:"impermeabilización", pintua:"pintura", pinturs:"pintura", electrico:"eléctrico",
+  electrica:"eléctrica", electricos:"eléctricos", electricas:"eléctricas", hidraulico:"hidráulico",
+  hidraulica:"hidráulica", hidraulicos:"hidráulicos", hidraulicas:"hidráulicas", metalico:"metálico",
+  metalica:"metálica", ceramica:"cerámica", ceramico:"cerámico", marmol:"mármol", meson:"mesón",
+  bano:"baño", banos:"baños", diseno:"diseño", disenio:"diseño", disenos:"diseños", tabiqueria:"tabiquería",
+  carpinteria:"carpintería", albanileria:"albañilería", "albañileria":"albañilería", mamposteria:"mampostería",
+  herreria:"herrería", plomeria:"plomería", jardineria:"jardinería", limpiesa:"limpieza", suministo:"suministro",
+  sumistro:"suministro", acabdos:"acabados", mantenimeinto:"mantenimiento", aprobacion:"aprobación",
+  supervision:"supervisión", direccion:"dirección", gestion:"gestión", ejecucion:"ejecución",
+  reparacion:"reparación", fabricacion:"fabricación", aplicacion:"aplicación", demolicon:"demolición",
+  entrga:"entrega", m2:"m²", m3:"m³", habitacion:"habitación", area:"área", areas:"áreas",
+  segun:"según", tambien:"también", ademas:"además", instalacon:"instalación", enchapes:"enchapes",
+  escombros:"escombros", drywall:"drywall", porcelanato:"porcelanato", vinilo:"vinilo"
+};
+function autocorregirTexto(texto){
+  if(!texto) return texto;
+  let out = texto.replace(/\s+/g,' ').replace(/\s+([,.;:!?])/g,'$1').replace(/([,.;:])(?=[^\s\d])/g,'$1 ').trim();
+  out = out.split(' ').map(pal => {
+    const m = pal.match(/^([¡¿("']*)([\wÀ-ÿ²³]+)([)"'.,;:!?]*)$/);
+    if(!m) return pal;
+    const [, pre, core, post] = m;
+    const fix = AUTOCORRECT[core.toLowerCase()];
+    if(!fix) return pal;
+    const corregido = (core === core.toUpperCase() && core.length > 1)
+      ? fix.toUpperCase()
+      : (core[0] === core[0].toUpperCase() ? fix.charAt(0).toUpperCase()+fix.slice(1) : fix);
+    return pre + corregido + post;
+  }).join(' ');
+  out = out.replace(/(^|[.!?]\s+)([a-zà-ÿ])/g, (s,p1,p2)=> p1 + p2.toUpperCase());
+  return out;
+}
 function capitalizeItemDesc(id, inputEl){
-  let v = inputEl.value.trim().replace(/\s+/g,' ');
-  if(v) v = v.charAt(0).toUpperCase() + v.slice(1);
+  const v = autocorregirTexto(inputEl.value);
   inputEl.value = v;
   updateItem(id, 'desc', v);
 }
+
 function updateItem(id, field, value){
   const it = items.find(i => i.id === id);
   if(!it) return;
