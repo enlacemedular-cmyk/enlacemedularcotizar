@@ -1560,7 +1560,7 @@ async function downloadPDF(){
   await preloadImages();
   const oldTitle = document.title;
   const src = document.createElement('div');
-  src.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#ffffff;z-index:-1;pointer-events:none;';
+  src.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#ffffff;z-index:9999;pointer-events:none;';
   src.innerHTML = buildQuoteHTML();
   document.body.appendChild(src);
   await waitForImagesIn(src);
@@ -1569,8 +1569,10 @@ async function downloadPDF(){
   if(typeof html2pdf === 'undefined'){
     setStatus('Abriendo diálogo de impresión — elige "Guardar como PDF".');
     document.title = `Cotización ${numero}`;
+    document.getElementById('print-area').innerHTML = src.innerHTML;
+    src.remove();
     window.print();
-    setTimeout(()=>{ document.title = oldTitle; src.remove(); }, 1000);
+    setTimeout(()=>{ document.title = oldTitle; document.getElementById('print-area').innerHTML = ''; }, 1000);
     return;
   }
 
@@ -1588,7 +1590,14 @@ async function downloadPDF(){
     console.error(err);
     setStatus('No se pudo generar el PDF automáticamente. Abriendo impresión como respaldo...', 'err');
     document.title = `Cotización ${numero}`;
-    setTimeout(()=>window.print(), 400);
+    document.getElementById('print-area').innerHTML = src.innerHTML;
+    src.remove();
+    setTimeout(()=>{
+      window.print();
+      document.title = oldTitle;
+      document.getElementById('print-area').innerHTML = '';
+    }, 400);
+    return;
   }finally{
     document.title = oldTitle;
     src.remove();
