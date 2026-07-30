@@ -1554,55 +1554,23 @@ async function waitForImagesIn(el){
   }));
 }
 
+
+function plainTextPDF(){
+  const d = computeQuoteData();
+  const win = window.open('', '_blank');
+  if(!win){ setStatus('Permite ventanas emergentes para guardar el PDF.', 'err'); return; }
+  const rows = d.items.map(it => `<tr><td>${esc(it.desc)||''}</td><td>${esc(it.cant)} ${esc(it.unidad||'')}</td><td>${money(it.valor)}</td><td>${money(it.total)}</td></tr>`).join('');
+  const mats = d.materiales.length ? `<h2>Materiales</h2><table><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th></tr>${d.materiales.map(m=>`<tr><td>${esc(m.desc)}</td><td>${esc(m.unidad||'')}</td><td>${esc(m.cantidad)}</td></tr>`).join('')}</table>` : '';
+  const bancos = d.bancos.map(b=>`<p>${esc([b.banco, b.tipo, b.numero].filter(Boolean).join(' · '))}<br>${esc([b.titular ? 'Titular: '+b.titular : '', b.cc ? 'C.C. '+b.cc : ''].filter(Boolean).join(' | '))}</p>`).join('');
+  win.document.write(`<!doctype html><html><head><title>Cotización ${esc(d.numero)}</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#111827;margin:0}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #C59B27;padding-bottom:16px}.logo{width:190px}.right{text-align:right}.gold{color:#C59B27}.info{display:grid;grid-template-columns:1fr 1fr;gap:24px;background:#F9FAFB;padding:16px;margin:18px 0}h1{font-size:24px;margin:0}h2{font-size:14px;text-align:center;background:#F3F4F6;margin:18px 0 0;padding:10px}h3{font-size:11px;color:#9CA3AF;letter-spacing:.8px;margin:0 0 8px;text-transform:uppercase}p{font-size:12px;margin:2px 0;line-height:1.35}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#F3F4F6;color:#374151;text-align:left}th,td{border:1px solid #E5E7EB;padding:8px;vertical-align:top}.tot{margin-top:0;background:#F3F4F6}.tot td{border:none}.num{text-align:right}.firma{display:grid;grid-template-columns:1fr 1fr;gap:24px;border-top:3px solid #C59B27;margin-top:20px;padding-top:16px;break-inside:avoid}.sig{height:50px}.line{border-top:1px solid #9CA3AF;width:270px;padding-top:5px}.clientline{margin-left:auto;text-align:right}.bank{border-left:3px solid #C59B27;padding-left:10px;margin-top:8px}@media print{button{display:none}}</style></head><body><div class="head"><div><img class="logo" src="${LOGO_GRANDE}"></div><div class="right"><h1>COTIZACIÓN</h1><p class="gold"><b>Nº ${esc(d.numero)}</b></p>${line('Fecha', d.fecha)}${d.vencimiento?line('Válido hasta',d.vencimiento):''}</div></div><div class="info"><div><h3>Cliente</h3>${line('',d.clienteNombre)}${line('',d.clienteEmpresa)}${line('NIT/CC',d.clienteNit)}${line('Tel',d.clienteTel)}${line('Email',d.clienteEmail)}</div><div class="right"><h3>Proyecto</h3>${line('',d.proyNombre)}${line('',d.direccionCompleta)}${line(d.encargados.length>1?'Encargados':'Encargado',d.encargados.join(', '))}</div></div><h2>Detalle de cotización</h2><table><tr><th>Descripción</th><th>Cantidad</th><th>Valor unitario</th><th>Total</th></tr>${rows}</table>${mats}<table class="tot"><tr><td>${d.condiciones.length?'<b>Condiciones de pago:</b><br>'+d.condiciones.map(c=>`${esc(c.label)} -- ${c.pct}% (${money(c.valor)})`).join('<br>'):''}${line('Tiempo de entrega',d.entrega)}${line('Validez de la oferta',d.validez)}</td><td class="num">Subtotal: <b>${money(d.subtotal)}</b><br>IVA (${d.ivaPct}%): <b>${money(d.iva)}</b><br><b>TOTAL: <span class="gold">${money(d.total)}</span></b></td></tr></table><div class="firma"><div>${d.firmaSrc?`<img class="sig" src="${d.firmaSrc}">`:''}<div class="line"><p><b>${esc(d.conNombre)}</b>${d.conRol?' — '+esc(d.conRol):''}</p>${(d.conTel||d.conEmail)?`<p>${[esc(d.conTel),esc(d.conEmail)].filter(Boolean).join(' | ')}</p>`:''}</div>${bancos?`<div class="bank"><p><b>DATOS PARA TRANSFERENCIA</b></p>${bancos}</div>`:''}</div><div><div class="line clientline"><p><b>${esc(d.clienteNombre)}</b></p><p>Aceptado por el Cliente</p></div></div></div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  win.document.close();
+  setStatus('Se abrió la cotización. En el diálogo elige “Guardar como PDF”.', 'ok');
+}
+
 async function downloadPDF(){
   if(!checkPercentBeforeAction()) return;
-  setStatus('Generando PDF...');
   await preloadImages();
-  const oldTitle = document.title;
-  const src = document.createElement('div');
-  src.style.cssText = 'position:relative;width:794px;background:#ffffff;margin:0;pointer-events:none;';
-  src.innerHTML = buildQuoteHTML();
-  document.body.appendChild(src);
-  await waitForImagesIn(src);
-  const numero = document.getElementById('f_numero').value || 'cotizacion';
-
-  if(typeof html2pdf === 'undefined'){
-    setStatus('Abriendo diálogo de impresión — elige "Guardar como PDF".');
-    document.title = `Cotización ${numero}`;
-    document.getElementById('print-area').innerHTML = src.innerHTML;
-    src.remove();
-    window.print();
-    setTimeout(()=>{ document.title = oldTitle; document.getElementById('print-area').innerHTML = ''; }, 1000);
-    return;
-  }
-
-  try{
-    await html2pdf().set({
-      margin: 0,
-      filename: `Cotizacion_MEDULAR_${numero}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    }).from(src).save();
-    setStatus('PDF descargado ✓', 'ok');
-  }catch(err){
-    console.error(err);
-    setStatus('No se pudo generar el PDF automáticamente. Abriendo impresión como respaldo...', 'err');
-    document.title = `Cotización ${numero}`;
-    document.getElementById('print-area').innerHTML = src.innerHTML;
-    src.remove();
-    setTimeout(()=>{
-      document.title = `Cotización ${numero}`;
-      window.print();
-      document.title = oldTitle;
-      document.getElementById('print-area').innerHTML = '';
-    }, 400);
-    return;
-  }finally{
-    document.title = oldTitle;
-    src.remove();
-  }
+  plainTextPDF();
 }
 
 async function downloadWord(){
