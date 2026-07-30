@@ -1555,9 +1555,8 @@ async function waitForImagesIn(el){
 }
 
 
-function plainTextPDF(){
+function plainTextPDF(win){
   const d = computeQuoteData();
-  const win = window.open('', '_blank');
   if(!win){ setStatus('Permite ventanas emergentes para guardar el PDF.', 'err'); return; }
   const rows = d.items.map(it => `<tr><td>${esc(it.desc)||''}</td><td>${esc(it.cant)} ${esc(it.unidad||'')}</td><td>${money(it.valor)}</td><td>${money(it.total)}</td></tr>`).join('');
   const mats = d.materiales.length ? `<h2>Materiales</h2><table><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th></tr>${d.materiales.map(m=>`<tr><td>${esc(m.desc)}</td><td>${esc(m.unidad||'')}</td><td>${esc(m.cantidad)}</td></tr>`).join('')}</table>` : '';
@@ -1569,8 +1568,10 @@ function plainTextPDF(){
 
 async function downloadPDF(){
   if(!checkPercentBeforeAction()) return;
+  const win = window.open('', '_blank');
+  if(!win){ setStatus('Permite ventanas emergentes para guardar el PDF.', 'err'); return; }
   await preloadImages();
-  plainTextPDF();
+  plainTextPDF(win);
 }
 
 async function downloadWord(){
