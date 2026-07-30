@@ -1593,6 +1593,7 @@ async function downloadPDF(){
     document.getElementById('print-area').innerHTML = src.innerHTML;
     src.remove();
     setTimeout(()=>{
+      document.title = `Cotización ${numero}`;
       window.print();
       document.title = oldTitle;
       document.getElementById('print-area').innerHTML = '';
