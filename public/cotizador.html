@@ -265,6 +265,15 @@
     </details>
 
     <details class="card" open>
+      <summary>Materiales</summary>
+      <div class="card-body">
+        <div id="materiales-container"></div>
+        <button class="add-btn" onclick="addMaterial()">+ Agregar material</button>
+        <datalist id="material-suggestions"></datalist>
+      </div>
+    </details>
+
+    <details class="card" open>
       <summary>Totales</summary>
       <div class="card-body">
         <div class="field"><label>IVA (%)</label><input id="f_iva_pct" type="number" inputmode="numeric" class="persist-field" value="19" oninput="renderTotals()" onfocus="this.select()"></div>
