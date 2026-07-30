@@ -1494,6 +1494,12 @@ function buildPayload(){
       valor_total: round0(it.cant * it.valor)
     })),
 
+    materiales: materiales.map(m => ({
+      descripcion: m.desc || null,
+      unidad: m.unidad || null,
+      cantidad: round0(m.cantidad)
+    })).filter(m => m.descripcion || m.unidad || m.cantidad),
+
     subtotal: round0(totales.subtotal),
     iva_porcentaje: round0(totales.ivaPct),
     iva_valor: round0(totales.iva),
