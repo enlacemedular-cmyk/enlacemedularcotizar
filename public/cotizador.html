@@ -1709,9 +1709,16 @@ function fillItemDescSuggestions(){
   dl.innerHTML = suggestions.map(s => `<option value="${esc(s)}"></option>`).join('');
 }
 
+function fillMaterialSuggestions(){
+  const dl = document.getElementById('material-suggestions');
+  if(!dl) return;
+  dl.innerHTML = MATERIAL_OPTIONS.map(s => `<option value="${esc(s)}"></option>`).join('');
+}
+
 window.addEventListener('DOMContentLoaded', ()=>{
   initSelects();
   fillItemDescSuggestions();
+  fillMaterialSuggestions();
   preloadImages();
   document.getElementById('f_fecha').value = todayStr(0);
   document.getElementById('f_vencimiento').value = todayStr(15);
@@ -1732,6 +1739,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   toggleCustom('entrega');
   toggleCustom('validez');
   renderItems();
+  renderMateriales();
   renderCondiciones();
   renderEncargados();
   renderBancos();
