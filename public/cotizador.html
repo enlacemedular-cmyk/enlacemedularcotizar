@@ -1364,7 +1364,7 @@ function buildQuoteHTMLWord(){
   return `
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
     <tr><td width="45%" valign="middle" style="border-bottom:3px solid #C59B27;padding:0 0 14px 0;">
-      <img src="https://imglink.cc/cdn/ZF7ejqiY89.png" width="200" style="display:block;" />
+      <img src="${LOGO_GRANDE}" width="200" style="display:block;" />
     </td>
     <td valign="top" align="right" style="border-bottom:3px solid #C59B27;padding:0 0 14px 0;">
       <p style="margin:0;font-size:20pt;font-weight:bold;color:#111827;">COTIZACIÓN</p>
@@ -1428,7 +1428,7 @@ function buildQuoteHTMLWord(){
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-top:3px solid #C59B27;margin-top:18px;">
     <tr>
       <td width="55%" valign="top" style="padding-top:14px;">
-        <img src="https://imglink.cc/cdn/fbiloESNBc.png" height="50" style="display:block;margin-bottom:4px;" />
+        ${d.firmaSrc ? `<img src="${d.firmaSrc}" height="50" style="display:block;margin-bottom:4px;" />` : ''}
         <table cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #9CA3AF;width:260px;">
           <tr><td style="padding-top:4px;">
             <p style="margin:0;font-size:9pt;font-weight:bold;color:#111827;">${esc(d.conNombre)}${rolConVal}</p>
