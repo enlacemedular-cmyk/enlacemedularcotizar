@@ -1026,6 +1026,7 @@ function collectState(){
     state[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
   });
   state.items = items;
+  state.materiales = materiales;
   state.condiciones = condiciones;
   state.encargados = encargados;
   state.bancos = bancos;
@@ -1044,7 +1045,7 @@ function applyState(state){
   updateCiudadOptions(false);
 
   Object.keys(state).forEach(key=>{
-    if(['items','condiciones','encargados','bancos','f_proy_pais','f_proy_depto','f_proy_ciudad'].includes(key)) return;
+    if(['items','materiales','condiciones','encargados','bancos','f_proy_pais','f_proy_depto','f_proy_ciudad'].includes(key)) return;
     const el = document.getElementById(key);
     if(!el) return;
     if(el.type === 'checkbox') el.checked = state[key];
@@ -1055,6 +1056,10 @@ function applyState(state){
   if(Array.isArray(state.items) && state.items.length){
     items = state.items;
     itemIdCounter = Math.max(...items.map(i=>i.id)) + 1;
+  }
+  if(Array.isArray(state.materiales)){
+    materiales = state.materiales;
+    materialIdCounter = materiales.length ? Math.max(...materiales.map(m=>m.id)) + 1 : 0;
   }
   if(Array.isArray(state.condiciones) && state.condiciones.length){
     condiciones = state.condiciones;
@@ -1073,6 +1078,7 @@ function applyState(state){
   toggleCustom('entrega');
   toggleCustom('validez');
   renderItems();
+  renderMateriales();
   renderCondiciones();
   renderEncargados();
   renderBancos();
