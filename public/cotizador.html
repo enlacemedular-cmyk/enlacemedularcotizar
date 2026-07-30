@@ -1560,7 +1560,7 @@ async function downloadPDF(){
   await preloadImages();
   const oldTitle = document.title;
   const src = document.createElement('div');
-  src.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#ffffff;z-index:9999;pointer-events:none;';
+  src.style.cssText = 'position:relative;width:794px;background:#ffffff;margin:0;pointer-events:none;';
   src.innerHTML = buildQuoteHTML();
   document.body.appendChild(src);
   await waitForImagesIn(src);
