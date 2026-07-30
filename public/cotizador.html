@@ -1138,6 +1138,7 @@ function computeQuoteData(){
     clienteTel: telClienteVal, clienteEmail: g('f_cliente_email'),
     proyNombre: g('f_proy_nombre'), direccionCompleta, encargados: nombresEncargados,
     items: items.map(it => ({ desc: it.desc, cant: it.cant, unidad: it.unidad, valor: it.valor, total: it.cant*it.valor })),
+    materiales: materiales.map(m => ({ desc: m.desc, unidad: m.unidad, cantidad: m.cantidad })).filter(m => m.desc || m.unidad || m.cantidad),
     condiciones: condicionesData,
     entrega: getEntregaTexto(), validez: getValidezTexto(),
     subtotal, iva, total, ivaPct,
