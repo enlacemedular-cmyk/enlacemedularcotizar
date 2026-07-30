@@ -676,6 +676,57 @@ function renderItems(){
 }
 
 /* =========================================================
+   MATERIALES (lista independiente de productos)
+   ========================================================= */
+function addMaterial(prefill){
+  const id = materialIdCounter++;
+  materiales.push({ id, desc:'', unidad: UNIT_OPTIONS[0], cantidad:1, ...(prefill||{}) });
+  renderMateriales();
+  saveState();
+}
+function removeMaterial(id){
+  materiales = materiales.filter(m => m.id !== id);
+  renderMateriales();
+  saveState();
+}
+function updateMaterial(id, field, value){
+  const mat = materiales.find(m => m.id === id);
+  if(!mat) return;
+  mat[field] = field === 'cantidad' ? (parseFloat(value) || 0) : value;
+}
+function capitalizeMaterialDesc(id, inputEl){
+  const v = autocorregirTexto(inputEl.value);
+  inputEl.value = v;
+  updateMaterial(id, 'desc', v);
+}
+function renderMateriales(){
+  const c = document.getElementById('materiales-container');
+  if(!c) return;
+  c.innerHTML = '';
+  if(materiales.length === 0){
+    c.innerHTML = '<div class="hint" style="margin-bottom:8px;">Agrega materiales solo cuando la cotización los requiera. Si queda vacío, no aparecerá en el PDF ni en Word.</div>';
+    return;
+  }
+  materiales.forEach(mat => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.setAttribute('data-material-id', mat.id);
+    const unitOpts = UNIT_OPTIONS.map(u => `<option value="${esc(u)}" ${u===mat.unidad?'selected':''}>${esc(u)}</option>`).join('');
+    div.innerHTML = `
+      <button class="remove-btn" onclick="removeMaterial(${mat.id})">✕ Quitar</button>
+      <div class="field"><label>Material</label>
+        <input value="${esc(mat.desc)}" oninput="updateMaterial(${mat.id},'desc',this.value)" placeholder="Ej: Viniltex" spellcheck="true" lang="es" list="material-suggestions" onblur="capitalizeMaterialDesc(${mat.id},this)">
+      </div>
+      <div class="item-grid">
+        <div class="field"><label>Unidad</label><select onchange="updateMaterial(${mat.id},'unidad',this.value)">${unitOpts}</select></div>
+        <div class="field"><label>Cantidad</label><input type="number" inputmode="numeric" value="${mat.cantidad}" oninput="updateMaterial(${mat.id},'cantidad',this.value)" onfocus="this.select()"></div>
+      </div>
+    `;
+    c.appendChild(div);
+  });
+}
+
+/* =========================================================
    CONDICIONES DE PAGO
    ========================================================= */
 function addCondicion(prefillTipo, prefillPct, prefillCustom){
