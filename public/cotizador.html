@@ -752,7 +752,7 @@ function renderItems(){
    ========================================================= */
 function addMaterial(prefill){
   const id = materialIdCounter++;
-  materiales.push({ id, desc:'', unidad: UNIT_OPTIONS[0], cantidad:1, ...(prefill||{}) });
+  materiales.push({ id, desc:'', unidad: UNIT_OPTIONS[0], cantidad:1, precio:0, ...(prefill||{}) });
   renderMateriales();
   saveState();
 }
@@ -764,8 +764,18 @@ function removeMaterial(id){
 function updateMaterial(id, field, value){
   const mat = materiales.find(m => m.id === id);
   if(!mat) return;
-  mat[field] = field === 'cantidad' ? (parseFloat(value) || 0) : value;
+  mat[field] = (field === 'cantidad' || field === 'precio') ? (parseFloat(value) || 0) : value;
 }
+function materialUnits(desc){
+  const d=(desc||'').toLowerCase();
+  if(/pintura|viniltex|intervinilo|acronal|sellador|primer|sika|impermeabilizante|ácido|aditivo/.test(d)) return ['Litro (L)','Galón (gal)','Caneca','Unidad (und)'];
+  if(/cemento|mortero|pegacor|estuco|yeso|arena|gravilla|base granular/.test(d)) return ['Bulto','Saco','Kilogramo (kg)','Tonelada (ton)','Metro cúbico (m³)'];
+  if(/cerámica|porcelanato|enchape|drywall|lámina|malla/.test(d)) return ['Metro cuadrado (m²)','Unidad (und)','Lámina'];
+  if(/cable|tubo|canaleta|manguera|alambre|varilla/.test(d)) return ['Metro (m)','Metro lineal (ml)','Rollo','Unidad (und)'];
+  if(/tornillo|clavo|puntilla|bisagra|conector|caja|válvula|rejilla|brocha|rodillo|disco|llana/.test(d)) return ['Unidad (und)','Caja','Paquete','Docena'];
+  return UNIT_OPTIONS;
+}
+function updateMaterialDesc(id,value){ const mat=materiales.find(m=>m.id===id); if(!mat)return; mat.desc=value; const allowed=materialUnits(value); if(!allowed.includes(mat.unidad)) mat.unidad=allowed[0]; renderMateriales(); }
 function capitalizeMaterialDesc(id, inputEl){
   const v = autocorregirTexto(inputEl.value);
   inputEl.value = v;
@@ -783,12 +793,13 @@ function renderMateriales(){
     const div = document.createElement('div');
     div.className = 'item-row';
     div.setAttribute('data-material-id', mat.id);
-    const unitOpts = UNIT_OPTIONS.map(u => `<option value="${esc(u)}" ${u===mat.unidad?'selected':''}>${esc(u)}</option>`).join('');
+    const unitOpts = materialUnits(mat.desc).map(u => `<option value="${esc(u)}" ${u===mat.unidad?'selected':''}>${esc(u)}</option>`).join('');
     div.innerHTML = `
       <button class="remove-btn" onclick="removeMaterial(${mat.id})">✕ Quitar</button>
       <div class="field"><label>Material</label>
-        <input value="${esc(mat.desc)}" oninput="updateMaterial(${mat.id},'desc',this.value)" placeholder="Ej: Viniltex" spellcheck="true" lang="es" list="material-suggestions" onblur="capitalizeMaterialDesc(${mat.id},this)">
+        <input value="${esc(mat.desc)}" oninput="updateMaterial(${mat.id},'desc',this.value)" onchange="updateMaterialDesc(${mat.id},this.value)" placeholder="Ej: Viniltex" spellcheck="true" lang="es" list="material-suggestions" onblur="capitalizeMaterialDesc(${mat.id},this)">
       </div>
+      <div class="field"><label>Precio unitario (opcional)</label><input type="number" inputmode="numeric" value="${mat.precio||''}" oninput="updateMaterial(${mat.id},'precio',this.value)" onfocus="this.select()" placeholder="0"></div>
       <div class="item-grid">
         <div class="field"><label>Unidad</label><select onchange="updateMaterial(${mat.id},'unidad',this.value)">${unitOpts}</select></div>
         <div class="field"><label>Cantidad</label><input type="number" inputmode="numeric" value="${mat.cantidad}" oninput="updateMaterial(${mat.id},'cantidad',this.value)" onfocus="this.select()"></div>
@@ -803,7 +814,7 @@ function renderMateriales(){
    ========================================================= */
 function addCondicion(prefillTipo, prefillPct, prefillCustom){
   const id = condIdCounter++;
-  condiciones.push({ id, tipo: prefillTipo || PAYMENT_CONDITION_TYPES[0], pct: (prefillPct===undefined?50:prefillPct), custom: prefillCustom || '' });
+  condiciones.push({ id, tipo: prefillTipo || PAYMENT_CONDITION_TYPES[0], pct: (prefillPct===undefined?50:prefillPct), custom: prefillCustom || '', mostrarValor:true, nota:'' });
   renderCondiciones();
   saveState();
 }
@@ -823,7 +834,7 @@ function updateCondicionTipo(id, value){
 function updateCondicion(id, field, value){
   const c = condiciones.find(c => c.id === id);
   if(!c) return;
-  c[field] = field === 'pct' ? (parseFloat(value)||0) : value;
+  c[field] = field === 'pct' ? (parseFloat(value)||0) : field === 'mostrarValor' ? Boolean(value) : value;
   refreshCondicionesLigero();
 }
 function refreshCondicionesLigero(){
@@ -857,12 +868,15 @@ function renderCondiciones(){
       <button class="remove-btn" onclick="removeCondicion(${cond.id})">✕ Quitar</button>
       <div class="field"><label>Tipo</label>
         <select onchange="updateCondicionTipo(${cond.id},this.value)">${opts}</select>
+        <div class="hint">${esc(PAYMENT_DESCRIPTIONS[cond.tipo]||'Define libremente cuándo debe realizarse este pago.')}</div>
       </div>
       ${showCustom ? `<div class="field"><label>Descripción</label><input value="${esc(cond.custom)}" oninput="updateCondicion(${cond.id},'custom',this.value)" placeholder="Ej: Contra certificado de avance"></div>` : ''}
       <div class="cond-pct-row">
         <div class="field"><label>Porcentaje (%)</label><input type="number" inputmode="numeric" value="${cond.pct}" oninput="updateCondicion(${cond.id},'pct',this.value)" onfocus="this.select()"></div>
       </div>
       <div class="cond-value">Valor: <span>${money(totales.total * (cond.pct/100))}</span></div>
+      <div class="checkbox-row" style="margin-top:8px;"><input type="checkbox" ${cond.mostrarValor!==false?'checked':''} onchange="updateCondicion(${cond.id},'mostrarValor',this.checked)"><label>Mostrar el valor calculado en el documento</label></div>
+      <div class="field"><label>Nota opcional</label><textarea rows="2" oninput="updateCondicion(${cond.id},'nota',this.value)" placeholder="Se mostrará entre paréntesis después del porcentaje o valor">${esc(cond.nota||'')}</textarea></div>
     `;
     c.appendChild(div);
   });
