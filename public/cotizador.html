@@ -1411,6 +1411,32 @@ function buildQuoteHTML(){
   `;
 }
 
+function modernizeDocument(html, isWord=false){
+  let out=html;
+  out=out.replace(/background:#FFFFFF url\('data:image\/jpeg;base64,[^']+'\) repeat-y center 120px;background-size:55% auto;/, 'background:#FFFFFF;position:relative;');
+  out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, `<img src="${IMG_HEADER_B64||HEADER_REMOTE}"$1 style="max-width:220px;height:auto;display:block;margin-left:auto;">`);
+  out=out.replace('vertical-align:top;width:45%', 'vertical-align:bottom;width:45%');
+  const watermark=`<img src="${IMG_WATERMARK_B64||WATERMARK_REMOTE}" alt="" style="position:fixed;z-index:0;left:50%;top:50%;transform:translate(-50%,-50%);width:48%;opacity:.05;pointer-events:none;">`;
+  out=out.replace(/(<div style="max-width:100%;margin:0 auto;background:#FFFFFF;position:relative;[^>]*>)/, `$1${watermark}`);
+  const fixed=`<style>@page{size:A4;margin:24mm}table{table-layout:fixed;width:100%}td,th{box-sizing:border-box;overflow-wrap:anywhere}.money{white-space:nowrap}</style>`;
+  return fixed+out;
+}
+
+function buildExportHTML(word=false){
+  quoteStates[activeQuoteType]=snapshotActiveQuote();
+  const mode=document.getElementById('f_quote_mode')?.value||'labor';
+  const types=mode==='both'?['labor','allcost']:[mode];
+  const restore=activeQuoteType;
+  const pages=types.map((type,index)=>{
+    loadQuoteState(type);
+    const title=`<h2 style="font:700 15px Arial,sans-serif;text-align:center;text-transform:uppercase;margin:0 0 12px;color:#111827;">${type==='labor'?'Mano de obra':'Todo costo'}</h2>`;
+    const body=word?buildQuoteHTMLWord():buildQuoteHTML();
+    return `<section style="${index?'page-break-before:always;':''}">${title}${modernizeDocument(body,word)}</section>`;
+  });
+  loadQuoteState(restore);
+  return pages.join('');
+}
+
 /* =========================================================
    VERSIÓN WORD (HTML "a prueba de Word": tablas y atributos
    HTML4 en vez de CSS moderno, que Word no interpreta bien)
