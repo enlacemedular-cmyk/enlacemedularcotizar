@@ -464,6 +464,18 @@ const PAYMENT_CONDITION_TYPES = [
 "Anticipo","Contra entrega","Contra avance de obra","Pago mensual","Cuota única al finalizar",
 "Cuotas iguales","Contra aprobación de diseño","Contra aprobación de planos","A la firma del contrato","Otro (personalizado)"
 ];
+const PAYMENT_DESCRIPTIONS = {
+  'Anticipo':'Pago inicial para reservar agenda, movilizar personal e iniciar actividades.',
+  'Contra entrega':'Pago exigible al entregar el alcance contratado.',
+  'Contra avance de obra':'Pago asociado a un porcentaje o hito verificable de ejecución.',
+  'Pago mensual':'Pago periódico por los trabajos ejecutados durante cada mes.',
+  'Cuota única al finalizar':'Un solo pago cuando la totalidad del trabajo esté terminada.',
+  'Cuotas iguales':'El total se divide en pagos del mismo valor.',
+  'Contra aprobación de diseño':'Pago posterior a la aprobación formal del diseño.',
+  'Contra aprobación de planos':'Pago posterior a la aprobación formal de los planos.',
+  'A la firma del contrato':'Pago exigible cuando ambas partes suscriben el contrato.',
+  'Otro (personalizado)':'Define libremente el momento o condición que activa el pago.'
+};
 
 const UNIT_OPTIONS = [
 "Unidad (und)","Global",
@@ -1107,6 +1119,7 @@ const STORAGE_KEY = 'medular_cotizacion_draft_v1';
 let storageAvailable = true;
 
 function collectState(){
+  quoteStates[activeQuoteType] = snapshotActiveQuote();
   const state = {};
   document.querySelectorAll('.persist-field').forEach(el=>{
     state[el.id] = (el.type === 'checkbox') ? el.checked : el.value;
@@ -1116,6 +1129,8 @@ function collectState(){
   state.condiciones = condiciones;
   state.encargados = encargados;
   state.bancos = bancos;
+  state.quoteStates = quoteStates;
+  state.activeQuoteType = activeQuoteType;
   return state;
 }
 function saveState(){
@@ -1131,7 +1146,7 @@ function applyState(state){
   updateCiudadOptions(false);
 
   Object.keys(state).forEach(key=>{
-    if(['items','materiales','condiciones','encargados','bancos','f_proy_pais','f_proy_depto','f_proy_ciudad'].includes(key)) return;
+    if(['items','materiales','condiciones','encargados','bancos','quoteStates','activeQuoteType','f_proy_pais','f_proy_depto','f_proy_ciudad'].includes(key)) return;
     const el = document.getElementById(key);
     if(!el) return;
     if(el.type === 'checkbox') el.checked = state[key];
@@ -1159,6 +1174,8 @@ function applyState(state){
     bancos = state.bancos;
     bancoIdCounter = Math.max(...bancos.map(b=>b.id)) + 1;
   }
+  if(state.quoteStates){ quoteStates=state.quoteStates; activeQuoteType=state.activeQuoteType||'labor'; loadQuoteState(activeQuoteType); }
+  else { quoteStates.labor=snapshotActiveQuote(); }
   toggleVencimiento();
   toggleCiudadOtra();
   toggleCustom('entrega');
@@ -1168,6 +1185,7 @@ function applyState(state){
   renderCondiciones();
   renderEncargados();
   renderBancos();
+  refreshQuoteModeUI();
 }
 function tryRestoreState(){
   try{
