@@ -1212,7 +1212,7 @@ function computeQuoteData(){
   const { subtotal, iva, total, ivaPct } = renderTotals();
   const g = id => (document.getElementById(id) ? document.getElementById(id).value : '');
   const ubic = getUbicacion();
-  const firmaSrc = IMG_FIRMA_B64 || FIRMA_URL;
+  const firmaSrc = IMG_FIRMA_B64 || FIRMA_REMOTE;
 
   const tieneVenc = document.getElementById('f_tiene_vencimiento').checked;
   const vencimiento = tieneVenc ? g('f_vencimiento') : '';
@@ -1225,7 +1225,9 @@ function computeQuoteData(){
   const condicionesData = condiciones.map(c => ({
     label: c.tipo === 'Otro (personalizado)' ? (c.custom || 'Condición personalizada') : c.tipo,
     pct: c.pct,
-    valor: total * (c.pct/100)
+    valor: total * (c.pct/100),
+    mostrarValor: c.mostrarValor !== false,
+    nota: c.nota || ''
   })).filter(c => c.label);
 
   const bancosData = bancos.map(b => ({
@@ -1242,7 +1244,7 @@ function computeQuoteData(){
     clienteTel: telClienteVal, clienteEmail: g('f_cliente_email'),
     proyNombre: g('f_proy_nombre'), direccionCompleta, encargados: nombresEncargados,
     items: items.map(it => ({ desc: it.desc, cant: it.cant, unidad: it.unidad, valor: it.valor, total: it.cant*it.valor })),
-    materiales: materiales.map(m => ({ desc: m.desc, unidad: m.unidad, cantidad: m.cantidad })).filter(m => m.desc || m.unidad || m.cantidad),
+    materiales: materiales.map(m => ({ desc: m.desc, unidad: m.unidad, cantidad: m.cantidad, precio:m.precio||0, total:(m.precio||0)*(m.cantidad||0) })).filter(m => m.desc || m.unidad || m.cantidad),
     condiciones: condicionesData,
     entrega: getEntregaTexto(), validez: getValidezTexto(),
     subtotal, iva, total, ivaPct,
