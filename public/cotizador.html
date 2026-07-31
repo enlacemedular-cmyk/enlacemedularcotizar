@@ -149,7 +149,7 @@
   /* ---------- PRINT AREA (documento final, oculto en pantalla) ---------- */
   #print-area{ position:absolute; left:-9999px; top:0; width:794px; background:#fff; }
 
-  @page{ size:A4; margin:10mm 8mm; }
+  @page{ size:A4; margin:24mm; }
 
   @media print{
     body{ padding-bottom:0 !important; }
@@ -256,8 +256,29 @@
     </details>
 
     <details class="card" open>
+      <summary>Alcance de la cotización</summary>
+      <div class="card-body">
+        <div class="field">
+          <label>Tipo de cotización</label>
+          <select id="f_quote_mode" class="persist-field" onchange="changeQuoteMode(this.value)">
+            <option value="labor">Solo mano de obra</option>
+            <option value="allcost">Solo todo costo</option>
+            <option value="both">Mano de obra y todo costo</option>
+          </select>
+          <div class="hint">“Mano de obra” incluye únicamente la ejecución. “Todo costo” puede incluir mano de obra, materiales y demás suministros.</div>
+        </div>
+        <div id="quote-tabs" class="row2" style="display:none;margin-top:8px;">
+          <button type="button" id="tab-labor" class="btn btn-gold" onclick="switchQuoteType('labor')">Mano de obra</button>
+          <button type="button" id="tab-allcost" class="btn btn-dark" onclick="switchQuoteType('allcost')">Todo costo</button>
+        </div>
+        <div id="active-quote-label" class="pct-banner ok" style="margin-top:10px;">Editando: Mano de obra</div>
+      </div>
+    </details>
+
+    <details class="card" open>
       <summary>Ítems de la cotización</summary>
       <div class="card-body">
+        <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('items')" style="display:none;margin:0 0 10px;">Copiar ítems de la otra modalidad</button>
         <div id="items-container"></div>
         <button class="add-btn" onclick="addItem()">+ Agregar ítem</button>
         <datalist id="item-desc-suggestions"></datalist>
@@ -267,6 +288,7 @@
     <details class="card" open>
       <summary>Materiales</summary>
       <div class="card-body">
+        <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('materiales')" style="display:none;margin:0 0 10px;">Copiar materiales de la otra modalidad</button>
         <div id="materiales-container"></div>
         <button class="add-btn" onclick="addMaterial()">+ Agregar material</button>
         <datalist id="material-suggestions"></datalist>
@@ -276,6 +298,7 @@
     <details class="card" open>
       <summary>Totales</summary>
       <div class="card-body">
+        <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('totales')" style="display:none;margin:0 0 10px;">Copiar IVA de la otra modalidad</button>
         <div class="field"><label>IVA (%)</label><input id="f_iva_pct" type="number" inputmode="numeric" class="persist-field" value="19" oninput="renderTotals()" onfocus="this.select()"></div>
         <div class="totals-summary"><span>Subtotal</span><span id="t_subtotal">$ 0</span></div>
         <div class="totals-summary"><span>IVA</span><span id="t_iva">$ 0</span></div>
@@ -286,6 +309,7 @@
     <details class="card" open>
       <summary>Condiciones de pago</summary>
       <div class="card-body">
+        <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('condiciones')" style="display:none;margin:0 0 10px;">Copiar condiciones de la otra modalidad</button>
         <div id="cond-container"></div>
         <button class="add-btn" onclick="addCondicion()">+ Agregar condición</button>
         <div class="pct-banner" id="pct-banner">Suma: 0%</div>
@@ -295,6 +319,7 @@
     <details class="card" open>
       <summary>Entrega y validez</summary>
       <div class="card-body">
+        <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('entrega')" style="display:none;margin:0 0 10px;">Copiar entrega y validez de la otra modalidad</button>
         <div class="field">
           <label>Tiempo de entrega</label>
           <select id="f_entrega_tipo" class="persist-field" onchange="toggleCustom('entrega')"></select>
