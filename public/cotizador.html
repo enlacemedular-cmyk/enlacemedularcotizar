@@ -1416,9 +1416,8 @@ function modernizeDocument(html, isWord=false){
   out=out.replace(/background:#FFFFFF url\('data:image\/jpeg;base64,[^']+'\) repeat-y center 120px;background-size:55% auto;/, 'background:#FFFFFF;position:relative;');
   out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, `<img src="${IMG_HEADER_B64||HEADER_REMOTE}"$1 style="max-width:220px;height:auto;display:block;margin-left:auto;">`);
   out=out.replace('vertical-align:top;width:45%', 'vertical-align:bottom;width:45%');
-  const watermark=`<img src="${IMG_WATERMARK_B64||WATERMARK_REMOTE}" alt="" style="position:fixed;z-index:0;left:50%;top:50%;transform:translate(-50%,-50%);width:48%;opacity:.05;pointer-events:none;">`;
-  out=out.replace(/(<div style="max-width:100%;margin:0 auto;background:#FFFFFF;position:relative;[^>]*>)/, `$1${watermark}`);
-  const fixed=`<style>@page{size:A4;margin:24mm}table{table-layout:fixed;width:100%}td,th{box-sizing:border-box;overflow-wrap:anywhere}.money{white-space:nowrap}</style>`;
+  const watermark=IMG_WATERMARK_B64||WATERMARK_REMOTE;
+  const fixed=`<style>@page{size:A4;margin:24mm;background-image:linear-gradient(rgba(255,255,255,.95),rgba(255,255,255,.95)),url('${watermark}');background-position:center;background-repeat:no-repeat;background-size:48% auto}@page:first{background-image:none}table{table-layout:fixed;width:100%}td,th{box-sizing:border-box;overflow-wrap:anywhere}.money{white-space:nowrap}</style>`;
   return fixed+out;
 }
 
