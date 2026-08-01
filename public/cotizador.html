@@ -1697,20 +1697,77 @@ async function waitForImagesIn(el){
 }
 
 
-function plainTextPDF(win){
-  if(!win){ setStatus('Permite ventanas emergentes para guardar el PDF.', 'err'); return; }
-  const numero=document.getElementById('f_numero').value||'cotizacion';
-  win.document.write(`<!doctype html><html><head><title>Cotización ${esc(numero)}</title><style>@page{size:A4;margin:24mm}html,body{margin:0;background:#fff}body{font-family:Arial,sans-serif;color:#111827}table{table-layout:fixed;width:100%}@media print{button{display:none}}</style></head><body>${buildExportHTML(false)}<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
-  win.document.close();
-  setStatus('Se abrió la cotización. En el diálogo elige “Guardar como PDF”.', 'ok');
+function modalidadAbrev(){
+  const mode=document.getElementById('f_quote_mode')?.value||'labor';
+  return mode==='both' ? 'MO.TC' : (mode==='allcost' ? 'TC' : 'MO');
+}
+function limpiaNombre(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim().replace(/\s/g,'') || '';
+}
+function nombreArchivo(){
+  const numero = document.getElementById('f_numero').value || 'MED0001';
+  const cliente = limpiaNombre(document.getElementById('f_cliente_nombre')?.value);
+  const empresa = limpiaNombre(document.getElementById('f_cliente_empresa')?.value);
+  return [limpiaNombre(numero), 'Cotizacion', modalidadAbrev(), cliente, empresa].filter(Boolean).join('_');
+}
+
+/* Genera el PDF con html2pdf (sin encabezados ni pies del navegador). */
+async function buildPdfDoc(){
+  await preloadImages();
+  const host = document.getElementById('print-area');
+  const prevStyle = host.getAttribute('style') || '';
+  host.innerHTML = `<div style="width:794px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
+  host.setAttribute('style','position:fixed;left:0;top:0;width:794px;background:#FFFFFF;z-index:-1;opacity:1;');
+  await waitForImagesIn(host);
+  try{
+    const worker = html2pdf().set({
+      margin: [24, 24, 24, 24],
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', windowWidth: 794, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
+      pagebreak: { mode: ['css','legacy'], avoid: '.avoid-break' }
+    }).from(host.firstElementChild);
+    const pdf = await worker.toPdf().get('pdf');
+    aplicarMarcaAgua(pdf);
+    return pdf;
+  } finally {
+    host.innerHTML = '';
+    host.setAttribute('style', prevStyle);
+  }
+}
+
+/* Marca de agua central, solo desde la segunda página. */
+function aplicarMarcaAgua(pdf){
+  try{
+    const total = pdf.internal.getNumberOfPages();
+    if(total < 2 || !IMG_CENTER_B64 || IMG_CENTER_B64.indexOf('data:') !== 0) return;
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    let ratio = 1;
+    try{ const pr = pdf.getImageProperties(IMG_CENTER_B64); ratio = pr.height / pr.width; }catch(e){}
+    const w = pw * 0.55, h = w * ratio;
+    for(let i = 2; i <= total; i++){
+      pdf.setPage(i);
+      let gs = null;
+      try{ gs = new pdf.GState({ opacity: 0.05 }); }catch(e){}
+      if(gs) pdf.setGState(gs);
+      pdf.addImage(IMG_CENTER_B64, 'PNG', (pw - w)/2, (ph - h)/2, w, h, undefined, 'FAST');
+      try{ pdf.setGState(new pdf.GState({ opacity: 1 })); }catch(e){}
+    }
+  }catch(e){}
 }
 
 async function downloadPDF(){
   if(!checkPercentBeforeAction()) return;
-  const win = window.open('', '_blank');
-  if(!win){ setStatus('Permite ventanas emergentes para guardar el PDF.', 'err'); return; }
-  await preloadImages();
-  plainTextPDF(win);
+  setStatus('Generando PDF...');
+  try{
+    const pdf = await buildPdfDoc();
+    pdf.save(nombreArchivo() + '.pdf');
+    setStatus('PDF descargado ✓', 'ok');
+  }catch(err){
+    setStatus('No se pudo generar el PDF. Intenta de nuevo.', 'err');
+  }
 }
 
 async function downloadWord(){
@@ -1732,7 +1789,7 @@ async function downloadWord(){
   const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `Cotizacion_MEDULAR_${numero}.doc`;
+  link.download = nombreArchivo() + '.doc';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -1741,14 +1798,29 @@ async function downloadWord(){
 
 async function enviarCliente(){
   if(!checkPercentBeforeAction()) return;
-  setStatus('Enviando...');
+  setStatus('Generando PDF y enviando...');
   try{
     const payload = buildPayload();
-    await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
+    const nombre = nombreArchivo() + '.pdf';
+    let blob = null;
+    try{
+      const pdf = await buildPdfDoc();
+      blob = pdf.output('blob');
+    }catch(e){ blob = null; }
+
+    if(blob){
+      const fd = new FormData();
+      fd.append('archivo', blob, nombre);
+      fd.append('nombre_archivo', nombre);
+      fd.append('payload', JSON.stringify(payload));
+      await fetch(WEBHOOK_URL, { method: 'POST', body: fd });
+    } else {
+      await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ...payload, nombre_archivo: nombre })
+      });
+    }
     setStatus('Enviado correctamente ✓', 'ok');
   }catch(err){
     setStatus('No se pudo enviar. Revisa tu conexión a internet.', 'err');
