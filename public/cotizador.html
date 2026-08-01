@@ -1724,7 +1724,7 @@ async function buildPdfDoc(){
     const worker = html2pdf().set({
       margin: [24, 0, 24, 0],
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', windowWidth: 794, scrollX: 0, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF' },
 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
       pagebreak: { mode: ['css','legacy'], avoid: '.avoid-break' }
