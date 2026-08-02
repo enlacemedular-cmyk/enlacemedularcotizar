@@ -1712,24 +1712,47 @@ function nombreArchivo(){
   return [limpiaNombre(numero), 'Cotizacion', modalidadAbrev(), cliente, empresa].filter(Boolean).join('_');
 }
 
-/* Genera el PDF con html2pdf (sin encabezados ni pies del navegador). */
+/* Genera el PDF capturando el documento y paginándolo manualmente
+   (control total de márgenes y escala; sin encabezados del navegador). */
+const PDF_MARGIN_MM = 14;
+const PDF_WIDTH_PX = 794;
+
 async function buildPdfDoc(){
   await preloadImages();
   const host = document.getElementById('print-area');
   const prevStyle = host.getAttribute('style') || '';
-  host.innerHTML = `<div style="width:794px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
-  host.setAttribute('style','position:absolute;left:0;top:0;width:794px;background:#FFFFFF;z-index:-1;opacity:1;');
+  host.innerHTML = `<div id="pdf-capture" style="width:${PDF_WIDTH_PX}px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
+  host.setAttribute('style',`position:absolute;left:0;top:0;width:${PDF_WIDTH_PX}px;background:#FFFFFF;z-index:-1;opacity:1;`);
   await waitForImagesIn(host);
   try{
-    const worker = html2pdf().set({
-      margin: [16, 16, 16, 16],
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', width: 794, windowWidth: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 },
+    const el = document.getElementById('pdf-capture');
+    const canvas = await html2canvas(el, {
+      scale: 2, useCORS: true, backgroundColor: '#FFFFFF',
+      width: PDF_WIDTH_PX, windowWidth: PDF_WIDTH_PX, scrollX: 0, scrollY: -window.scrollY
+    });
 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-      pagebreak: { mode: ['css','legacy'], avoid: '.avoid-break' }
-    }).from(host.firstElementChild);
-    const pdf = await worker.toPdf().get('pdf');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const usableW = pageW - PDF_MARGIN_MM*2;
+    const usableH = pageH - PDF_MARGIN_MM*2;
+    const pxPerMm = canvas.width / usableW;          // escala horizontal
+    const sliceHpx = Math.floor(usableH * pxPerMm);  // alto de página en px de canvas
+
+    let y = 0, page = 0;
+    while(y < canvas.height){
+      const h = Math.min(sliceHpx, canvas.height - y);
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = h;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,slice.width,slice.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      if(page) pdf.addPage();
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG',
+        PDF_MARGIN_MM, PDF_MARGIN_MM, usableW, h / pxPerMm, undefined, 'FAST');
+      y += h; page++;
+    }
     aplicarMarcaAgua(pdf);
     return pdf;
   } finally {
@@ -1737,6 +1760,7 @@ async function buildPdfDoc(){
     host.setAttribute('style', prevStyle);
   }
 }
+
 
 /* Marca de agua central, solo desde la segunda página. */
 function aplicarMarcaAgua(pdf){
