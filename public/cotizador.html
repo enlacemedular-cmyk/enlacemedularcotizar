@@ -1393,9 +1393,16 @@ function buildQuoteHTML(){
 
       <table class="avoid-break" style="width:100%;border-collapse:collapse;margin-top:18px;padding-top:14px;border-top:3px solid #C59B27;table-layout:fixed;">
         <tr>
-          <td style="vertical-align:bottom;width:50%;padding-top:14px;">
-            ${d.firmaSrc ? `<img src="${d.firmaSrc}" style="height:55px;width:auto;display:block;margin-bottom:2px;" />` : `<div style="height:55px;"></div>`}
-            <div style="border-top:1px solid #9CA3AF;width:240px;padding-top:4px;">
+          <td style="vertical-align:bottom;width:50%;padding-top:14px;height:60px;">
+            ${d.firmaSrc ? `<img src="${d.firmaSrc}" style="height:52px;width:auto;display:block;margin:0 0 2px 0;" />` : `<div style="height:52px;"></div>`}
+          </td>
+          <td style="vertical-align:bottom;width:50%;padding-top:14px;height:60px;">
+            <div style="height:52px;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;width:50%;">
+            <div style="border-top:1px solid #9CA3AF;width:92%;padding-top:4px;">
               <p style="font-size:11px;font-weight:700;color:#111827;margin:0;">${esc(d.conNombre)}${rolConVal}</p>
               ${(d.conTel || d.conEmail) ? `<p style="font-size:11px;color:#6B7280;margin:1px 0 0 0;">${[esc(d.conTel), esc(d.conEmail)].filter(Boolean).join(' | ')}</p>` : ''}
             </div>
@@ -1404,15 +1411,15 @@ function buildQuoteHTML(){
               ${bancosHTML}
             </div>` : ''}
           </td>
-          <td style="vertical-align:bottom;width:50%;text-align:left;padding-top:14px;">
-            <div style="height:55px;margin-bottom:2px;"></div>
-            <div style="border-top:1px solid #9CA3AF;width:240px;padding-top:4px;margin-left:0;">
+          <td style="vertical-align:top;width:50%;">
+            <div style="border-top:1px solid #9CA3AF;width:92%;padding-top:4px;">
               <p style="font-size:11px;font-weight:600;color:#111827;margin:0;">${esc(d.clienteNombre)}</p>
               <p style="font-size:11px;color:#6B7280;margin:1px 0 0 0;">Aceptado por el Cliente</p>
             </div>
           </td>
         </tr>
       </table>
+
     </div>
   </div>
   `;
