@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MEDULAR · Generador de Cotizaciones</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
   :root{
     --gold:#C59B27;
@@ -1391,9 +1393,16 @@ function buildQuoteHTML(){
 
       <table class="avoid-break" style="width:100%;border-collapse:collapse;margin-top:18px;padding-top:14px;border-top:3px solid #C59B27;table-layout:fixed;">
         <tr>
-          <td style="vertical-align:bottom;width:50%;padding-top:14px;">
-            ${d.firmaSrc ? `<img src="${d.firmaSrc}" style="height:55px;width:auto;display:block;margin-bottom:2px;" />` : `<div style="height:55px;"></div>`}
-            <div style="border-top:1px solid #9CA3AF;width:240px;padding-top:4px;">
+          <td style="vertical-align:bottom;width:50%;padding-top:14px;height:60px;">
+            ${d.firmaSrc ? `<img src="${d.firmaSrc}" style="height:52px;width:auto;display:block;margin:0 0 2px 0;" />` : `<div style="height:52px;"></div>`}
+          </td>
+          <td style="vertical-align:bottom;width:50%;padding-top:14px;height:60px;">
+            <div style="height:52px;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;width:50%;">
+            <div style="border-top:1px solid #9CA3AF;width:92%;padding-top:4px;">
               <p style="font-size:11px;font-weight:700;color:#111827;margin:0;">${esc(d.conNombre)}${rolConVal}</p>
               ${(d.conTel || d.conEmail) ? `<p style="font-size:11px;color:#6B7280;margin:1px 0 0 0;">${[esc(d.conTel), esc(d.conEmail)].filter(Boolean).join(' | ')}</p>` : ''}
             </div>
@@ -1402,15 +1411,15 @@ function buildQuoteHTML(){
               ${bancosHTML}
             </div>` : ''}
           </td>
-          <td style="vertical-align:bottom;width:50%;text-align:left;padding-top:14px;">
-            <div style="height:55px;margin-bottom:2px;"></div>
-            <div style="border-top:1px solid #9CA3AF;width:240px;padding-top:4px;margin-left:0;">
+          <td style="vertical-align:top;width:50%;">
+            <div style="border-top:1px solid #9CA3AF;width:92%;padding-top:4px;">
               <p style="font-size:11px;font-weight:600;color:#111827;margin:0;">${esc(d.clienteNombre)}</p>
               <p style="font-size:11px;color:#6B7280;margin:1px 0 0 0;">Aceptado por el Cliente</p>
             </div>
           </td>
         </tr>
       </table>
+
     </div>
   </div>
   `;
@@ -1712,23 +1721,47 @@ function nombreArchivo(){
   return [limpiaNombre(numero), 'Cotizacion', modalidadAbrev(), cliente, empresa].filter(Boolean).join('_');
 }
 
-/* Genera el PDF con html2pdf (sin encabezados ni pies del navegador). */
+/* Genera el PDF capturando el documento y paginándolo manualmente
+   (control total de márgenes y escala; sin encabezados del navegador). */
+const PDF_MARGIN_MM = 14;
+const PDF_WIDTH_PX = 794;
+
 async function buildPdfDoc(){
   await preloadImages();
   const host = document.getElementById('print-area');
   const prevStyle = host.getAttribute('style') || '';
-  host.innerHTML = `<div style="width:794px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
-  host.setAttribute('style','position:fixed;left:0;top:0;width:794px;background:#FFFFFF;z-index:-1;opacity:1;');
+  host.innerHTML = `<div id="pdf-capture" style="width:${PDF_WIDTH_PX}px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
+  host.setAttribute('style',`position:absolute;left:0;top:0;width:${PDF_WIDTH_PX}px;background:#FFFFFF;z-index:-1;opacity:1;`);
   await waitForImagesIn(host);
   try{
-    const worker = html2pdf().set({
-      margin: [24, 24, 24, 24],
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', windowWidth: 794, scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-      pagebreak: { mode: ['css','legacy'], avoid: '.avoid-break' }
-    }).from(host.firstElementChild);
-    const pdf = await worker.toPdf().get('pdf');
+    const el = document.getElementById('pdf-capture');
+    const canvas = await html2canvas(el, {
+      scale: 2, useCORS: true, backgroundColor: '#FFFFFF',
+      width: PDF_WIDTH_PX, windowWidth: PDF_WIDTH_PX, scrollX: 0, scrollY: -window.scrollY
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const usableW = pageW - PDF_MARGIN_MM*2;
+    const usableH = pageH - PDF_MARGIN_MM*2;
+    const pxPerMm = canvas.width / usableW;          // escala horizontal
+    const sliceHpx = Math.floor(usableH * pxPerMm);  // alto de página en px de canvas
+
+    let y = 0, page = 0;
+    while(y < canvas.height){
+      const h = Math.min(sliceHpx, canvas.height - y);
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = h;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,slice.width,slice.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      if(page) pdf.addPage();
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG',
+        PDF_MARGIN_MM, PDF_MARGIN_MM, usableW, h / pxPerMm, undefined, 'FAST');
+      y += h; page++;
+    }
     aplicarMarcaAgua(pdf);
     return pdf;
   } finally {
@@ -1736,6 +1769,7 @@ async function buildPdfDoc(){
     host.setAttribute('style', prevStyle);
   }
 }
+
 
 /* Marca de agua central, solo desde la segunda página. */
 function aplicarMarcaAgua(pdf){
