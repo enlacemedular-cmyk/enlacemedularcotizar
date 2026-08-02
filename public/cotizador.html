@@ -1718,13 +1718,14 @@ async function buildPdfDoc(){
   const host = document.getElementById('print-area');
   const prevStyle = host.getAttribute('style') || '';
   host.innerHTML = `<div style="width:794px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;color:#111827;">${buildExportHTML(false)}</div>`;
-  host.setAttribute('style','position:fixed;left:0;top:0;width:794px;background:#FFFFFF;z-index:-1;opacity:1;');
+  host.setAttribute('style','position:absolute;left:0;top:0;width:794px;background:#FFFFFF;z-index:-1;opacity:1;');
   await waitForImagesIn(host);
   try{
     const worker = html2pdf().set({
-      margin: [24, 24, 24, 24],
+      margin: [16, 16, 16, 16],
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', windowWidth: 794, scrollX: 0, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#FFFFFF', width: 794, windowWidth: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 },
+
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
       pagebreak: { mode: ['css','legacy'], avoid: '.avoid-break' }
     }).from(host.firstElementChild);
