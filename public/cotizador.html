@@ -1736,32 +1736,56 @@ async function buildPdfDoc(){
   await waitForImagesIn(host);
   try{
     const el = document.getElementById('pdf-capture');
-    const canvas = await html2canvas(el, {
-      scale: 2, useCORS: true, backgroundColor: '#FFFFFF',
-      width: PDF_WIDTH_PX, windowWidth: PDF_WIDTH_PX, scrollX: 0, scrollY: -window.scrollY
-    });
-
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait', compress:true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const usableW = pageW - PDF_MARGIN_MM*2;
     const usableH = pageH - PDF_MARGIN_MM*2;
-    const pxPerMm = canvas.width / usableW;          // escala horizontal
-    const sliceHpx = Math.floor(usableH * pxPerMm);  // alto de página en px de canvas
 
-    let y = 0, page = 0;
-    while(y < canvas.height){
-      const h = Math.min(sliceHpx, canvas.height - y);
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width; slice.height = h;
-      const ctx = slice.getContext('2d');
-      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,slice.width,slice.height);
-      ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if(page) pdf.addPage();
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG',
-        PDF_MARGIN_MM, PDF_MARGIN_MM, usableW, h / pxPerMm, undefined, 'FAST');
-      y += h; page++;
+    // Cada modalidad (mano de obra / todo costo) es una <section>: siempre empieza en página nueva.
+    const sections = Array.from(el.querySelectorAll(':scope > section'));
+    const targets = sections.length ? sections : [el];
+    let first = true;
+
+    for(const section of targets){
+      const canvas = await html2canvas(section, {
+        scale: 2, useCORS: true, backgroundColor: '#FFFFFF',
+        width: PDF_WIDTH_PX, windowWidth: PDF_WIDTH_PX, scrollX: 0, scrollY: -window.scrollY
+      });
+      const pxPerMm = canvas.width / usableW;
+      const sliceHpx = Math.floor(usableH * pxPerMm);
+      const ratio = canvas.width / section.getBoundingClientRect().width;
+      const sectionTop = section.getBoundingClientRect().top;
+
+      // Bloques que no se pueden partir (firmas, totales, datos del cliente...)
+      const blocks = Array.from(section.querySelectorAll('.avoid-break')).map(node => {
+        const r = node.getBoundingClientRect();
+        return { start: (r.top - sectionTop) * ratio, end: (r.bottom - sectionTop) * ratio };
+      }).filter(b => (b.end - b.start) < sliceHpx);
+
+      let y = 0;
+      while(y < canvas.height - 2){
+        let cut = Math.min(y + sliceHpx, canvas.height);
+        if(cut < canvas.height){
+          for(const b of blocks){
+            if(b.start > y + 4 && b.start < cut && b.end > cut){
+              cut = Math.min(cut, Math.floor(b.start) - 2);
+            }
+          }
+        }
+        const h = Math.max(10, cut - y);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width; slice.height = h;
+        const ctx = slice.getContext('2d');
+        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,slice.width,slice.height);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if(!first) pdf.addPage();
+        first = false;
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG',
+          PDF_MARGIN_MM, PDF_MARGIN_MM, usableW, h / pxPerMm, undefined, 'FAST');
+        y += h;
+      }
     }
     aplicarMarcaAgua(pdf);
     return pdf;
@@ -1770,6 +1794,7 @@ async function buildPdfDoc(){
     host.setAttribute('style', prevStyle);
   }
 }
+
 
 
 /* Marca de agua central, solo desde la segunda página. */
