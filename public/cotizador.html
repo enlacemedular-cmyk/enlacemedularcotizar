@@ -1375,19 +1375,23 @@ function buildQuoteHTML(){
 
       ${materialesTable}
 
-      <div class="avoid-break" style="width:100%;margin-top:0;background:#F3F4F6;border-top:3px solid #C59B27;padding:14px 18px;box-sizing:border-box;overflow:hidden;">
-        <table style="width:auto;max-width:100%;margin-left:auto;font-size:13px;border-collapse:collapse;table-layout:auto;">
-          <tr><td style="padding:4px 18px 4px 0;color:#4B5563;text-align:left;white-space:nowrap;">Subtotal:</td><td style="padding:4px 0;font-weight:600;color:#111827;text-align:right;white-space:nowrap;">${money(d.subtotal)}</td></tr>
-          <tr><td style="padding:4px 18px 4px 0;color:#4B5563;text-align:left;white-space:nowrap;">IVA (${d.ivaPct}%):</td><td style="padding:4px 0;font-weight:600;color:#111827;text-align:right;white-space:nowrap;">${money(d.iva)}</td></tr>
-          <tr><td style="padding:10px 18px 4px 0;font-weight:800;color:#111827;text-align:left;font-size:13px;border-top:1px solid #C59B27;white-space:nowrap;">TOTAL:</td><td style="padding:10px 0 4px 0;font-weight:800;color:#C59B27;text-align:right;font-size:13px;white-space:nowrap;border-top:1px solid #C59B27;">${money(d.total)}</td></tr>
-        </table>
-      </div>
+      <table class="avoid-break" style="width:100%;margin-top:0;background:#F3F4F6;border-top:3px solid #C59B27;border-collapse:collapse;table-layout:auto;box-sizing:border-box;">
+        <tr>
+          <td style="vertical-align:top;padding:14px 18px;font-size:12px;color:#374151;line-height:1.6;">
+            ${condHTML ? `<p style="margin:0 0 6px 0;font-weight:700;color:#111827;">Condiciones de pago:</p><ul style="margin:0 0 10px 18px;padding:0;color:#374151;">${condHTML}</ul>` : ''}
+            ${line('Tiempo de entrega', d.entrega, { style:'margin:0 0 4px 0;' })}
+            ${line('Validez de la oferta', d.validez, { style:'margin:0;' })}
+          </td>
+          <td style="vertical-align:top;padding:14px 18px;width:1%;white-space:nowrap;border-left:1px solid #9CA3AF;">
+            <table style="width:auto;font-size:13px;border-collapse:collapse;table-layout:auto;">
+              <tr><td style="padding:4px 18px 4px 0;color:#4B5563;text-align:left;white-space:nowrap;">Subtotal:</td><td style="padding:4px 0;font-weight:600;color:#111827;text-align:right;white-space:nowrap;">${money(d.subtotal)}</td></tr>
+              <tr><td style="padding:4px 18px 4px 0;color:#4B5563;text-align:left;white-space:nowrap;">IVA (${d.ivaPct}%):</td><td style="padding:4px 0;font-weight:600;color:#111827;text-align:right;white-space:nowrap;">${money(d.iva)}</td></tr>
+              <tr><td style="padding:10px 18px 4px 0;font-weight:800;color:#111827;text-align:left;font-size:13px;border-top:1px solid #C59B27;white-space:nowrap;">TOTAL:</td><td style="padding:10px 0 4px 0;font-weight:800;color:#C59B27;text-align:right;font-size:13px;white-space:nowrap;border-top:1px solid #C59B27;">${money(d.total)}</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
 
-      ${(condHTML || d.entrega || d.validez) ? `<div class="avoid-break" style="padding:14px 18px;font-size:12px;color:#374151;line-height:1.6;background:#F3F4F6;border-top:1px solid #E5E7EB;box-sizing:border-box;">
-        ${condHTML ? `<p style="margin:0 0 6px 0;font-weight:700;color:#111827;">Condiciones de pago:</p><ul style="margin:0 0 10px 18px;padding:0;color:#374151;">${condHTML}</ul>` : ''}
-        ${line('Tiempo de entrega', d.entrega, { style:'margin:0 0 4px 0;' })}
-        ${line('Validez de la oferta', d.validez, { style:'margin:0;' })}
-      </div>` : ''}
 
       <table class="avoid-break" style="width:100%;border-collapse:collapse;margin-top:18px;padding-top:14px;border-top:3px solid #C59B27;table-layout:fixed;">
         <tr>
