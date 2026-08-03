@@ -203,10 +203,14 @@
         </div>
         <div class="field"><label>Empresa (opcional)</label><input id="f_cliente_empresa" class="persist-field" spellcheck="true" lang="es" placeholder="Nombre de la empresa"></div>
         <div class="field">
-          <label>NIT / CC</label>
-          <input id="f_cliente_nit" class="persist-field nit-format" inputmode="numeric" placeholder="1.015.066.198">
-          <div class="hint">Se formatea solo. Si es NIT, agrega el DV con un guion: 900123456-7</div>
+          <label>Documento de identificación</label>
+          <div class="row-tel">
+            <select id="f_cliente_doc_tipo" class="persist-field"></select>
+            <input id="f_cliente_nit" class="persist-field nit-format" placeholder="901.234.567-1">
+          </div>
+          <div class="hint" id="hint_doc_tipo">Escribe solo números o letras: el formato se aplica solo.</div>
         </div>
+
         <div class="field">
           <label>Teléfono</label>
           <div class="row-tel">
