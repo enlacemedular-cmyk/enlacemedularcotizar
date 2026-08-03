@@ -1985,7 +1985,9 @@ function reiniciarFormulario(){
    INICIALIZACIÓN
    ========================================================= */
 function initSelects(){
+  fillDocTipoSelect();
   fillCountryCodeSelect(document.getElementById('f_cliente_tel_code'), '+57');
+
   fillCountryCodeSelect(document.getElementById('f_con_tel_code'), '+57');
   fillCountrySelect(document.getElementById('f_proy_pais'));
   fillSimpleSelect(document.getElementById('f_entrega_tipo'), DELIVERY_OPTIONS);
