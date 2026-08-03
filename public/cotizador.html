@@ -1907,6 +1907,24 @@ async function downloadPDF(){
   }
 }
 
+/* Word: se genera como documento MHTML (.doc) con las imágenes incrustadas,
+   así el formato y los logos se conservan igual que en el PDF. */
+function b64Chunks(b64){
+  return (b64.match(/.{1,76}/g) || []).join('\r\n');
+}
+function extraerImagenesWord(html){
+  const parts = [];
+  let n = 0;
+  const out = html.replace(/src="data:image\/([a-zA-Z]+);base64,([^"]+)"/g, (m, ext, b64) => {
+    n++;
+    const clean = ext.toLowerCase() === 'jpeg' ? 'jpg' : ext.toLowerCase();
+    const name = `medular_img${n}.${clean}`;
+    parts.push({ name, type: `image/${ext.toLowerCase()}`, b64: b64.replace(/\s/g, '') });
+    return `src="file:///C:/medular/${name}"`;
+  });
+  return { html: out, parts };
+}
+
 async function downloadWord(){
   if(!checkPercentBeforeAction()) return;
   setStatus('Preparando cotización...');
@@ -1914,24 +1932,48 @@ async function downloadWord(){
   const contenido = buildExportHTML(true);
   const numero = document.getElementById('f_numero').value || 'cotizacion';
   const fullHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-  <head><meta charset='utf-8'><title>Cotización ${esc(numero)}</title>
+  <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Cotización ${esc(numero)}</title>
   <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/><w:DoNotOrganizeInFolder/></w:WordDocument></xml><![endif]-->
   <style>
-    @page WordSection1{ size:21cm 29.7cm; margin:2.4cm; }
+    @page WordSection1{ size:21.0cm 29.7cm; margin:2.4cm 2.4cm 2.0cm 2.4cm; mso-header-margin:1.0cm; mso-footer-margin:1.0cm; mso-paper-source:0; mso-footer:f1; }
     div.WordSection1{ page:WordSection1; }
-    body{ font-family:Calibri,Arial,sans-serif; }
-    table{ mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    body{ font-family:Calibri,Arial,sans-serif; color:#111827; }
+    p{ margin:0; mso-line-height-rule:exactly; }
+    table{ mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse; }
+    td,th{ mso-line-height-rule:exactly; vertical-align:top; }
+    img{ border:0; }
+    p.MsoFooter, li.MsoFooter, div.MsoFooter{ margin:0; font-size:10.0pt; font-family:Calibri,Arial,sans-serif; }
   </style>
-  </head><body><div class="WordSection1">${contenido}</div></body></html>`;
-  const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword' });
+  </head><body lang="ES"><div class="WordSection1">${contenido}
+  <div style='mso-element:footer' id="f1">
+    <p class="MsoFooter" align="right" style="text-align:right;">
+      <span style="background:#C59B27;mso-highlight:#C59B27;color:#000000;font-weight:bold;">&nbsp;&nbsp;<span style="mso-field-code:PAGE"></span>&nbsp;&nbsp;</span>
+    </p>
+  </div>
+  </div></body></html>`;
+
+  const { html: htmlConRefs, parts } = extraerImagenesWord(fullHtml);
+  const boundary = '----=_NextPart_MEDULAR_01';
+  const htmlB64 = btoa(unescape(encodeURIComponent(htmlConRefs)));
+  let mht = 'MIME-Version: 1.0\r\n';
+  mht += `Content-Type: multipart/related; type="text/html"; boundary="${boundary}"\r\n\r\n`;
+  mht += `--${boundary}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/medular/documento.htm\r\n\r\n${b64Chunks(htmlB64)}\r\n\r\n`;
+  parts.forEach(p => {
+    mht += `--${boundary}\r\nContent-Type: ${p.type}\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/medular/${p.name}\r\n\r\n${b64Chunks(p.b64)}\r\n\r\n`;
+  });
+  mht += `--${boundary}--\r\n`;
+
+  const blob = new Blob([mht], { type: 'application/msword' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = nombreArchivo() + '.doc';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(()=>URL.revokeObjectURL(link.href), 2000);
   setStatus('Word descargado ✓', 'ok');
 }
+
 
 async function enviarCliente(){
   if(!checkPercentBeforeAction()) return;
