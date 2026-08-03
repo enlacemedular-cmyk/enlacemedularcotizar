@@ -632,15 +632,61 @@ function formatMilesSimple(digitsStr){
   digitsStr = (digitsStr||'').replace(/\D/g,'');
   return digitsStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
-function formatNitCC(raw){
-  raw = (raw||'').replace(/[^0-9-]/g,'');
-  const hasDash = raw.indexOf('-') !== -1;
-  const parts = raw.split('-');
-  let main = formatMilesSimple(parts[0]);
-  let dv = parts.length>1 ? parts[1].replace(/\D/g,'').slice(0,1) : '';
-  if(hasDash) return main + '-' + dv;
-  return main;
+/* Tipos de documento admitidos y su formato automático. */
+const DOC_TIPOS = [
+  { id:'NIT', label:'NIT (Número de Identificación Tributaria)', ph:'901.234.567-1',
+    hint:'Tres números, punto, tres números, punto, tres números, guion y el dígito de verificación.',
+    fmt(v){ const d=v.replace(/\D/g,'').slice(0,10); const main=d.slice(0,9).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); const dv=d.slice(9); return main + (dv?'-'+dv:''); } },
+  { id:'CC', label:'CC (Cédula de Ciudadanía)', ph:'1.017.234.567',
+    hint:'Números separados por punto cada tres cifras.',
+    fmt(v){ const d=v.replace(/\D/g,'').slice(0,10); return d.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); } },
+  { id:'CE', label:'CE (Cédula de Extranjería)', ph:'E-123.456',
+    hint:'La letra E, guion, tres números, punto y tres números.',
+    fmt(v){ const d=v.replace(/\D/g,'').slice(0,6); if(!d) return ''; return 'E-' + d.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); } },
+  { id:'PAS', label:'PAS (Pasaporte)', ph:'AA123456',
+    hint:'Dos letras mayúsculas seguidas de seis números.',
+    fmt(v){ const c=v.toUpperCase().replace(/[^A-Z0-9]/g,''); const l=c.replace(/[^A-Z]/g,'').slice(0,2); const n=c.replace(/[^0-9]/g,'').slice(0,6); return l+n; } },
+  { id:'RUC', label:'RUC (Registro Único de Contribuyentes)', ph:'20123456789',
+    hint:'Once números seguidos, sin puntos ni guiones.',
+    fmt(v){ return v.replace(/\D/g,'').slice(0,11); } },
+  { id:'RFC', label:'RFC (Registro Federal de Contribuyentes)', ph:'ABC123456-XYZ',
+    hint:'Tres letras, seis números, guion y tres caracteres de homoclave.',
+    fmt(v){ const c=v.toUpperCase().replace(/[^A-Z0-9]/g,''); const l=c.slice(0,3).replace(/[^A-Z]/g,''); const rest=c.slice(l.length); const n=rest.replace(/[^0-9]/g,'').slice(0,6); const homo=rest.slice(n.length).slice(0,3); return l+n+(homo?'-'+homo:''); } },
+  { id:'DNI', label:'DNI / RUN (Documento Nacional de Identidad)', ph:'12.345.678-K',
+    hint:'Dos números, punto, tres números, punto, tres números, guion y una letra.',
+    fmt(v){ const c=v.toUpperCase().replace(/[^A-Z0-9]/g,''); const d=c.replace(/[^0-9]/g,'').slice(0,8); const letra=c.replace(/[^A-Z]/g,'').slice(0,1); let out=d.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return out + (letra?'-'+letra:''); } },
+  { id:'TAXID', label:'Tax ID / EIN (Identificación Fiscal Internacional)', ph:'12-3456789',
+    hint:'Dos números, guion y siete números.',
+    fmt(v){ const d=v.replace(/\D/g,'').slice(0,9); return d.length>2 ? d.slice(0,2)+'-'+d.slice(2) : d; } }
+];
+function getDocTipo(){
+  const sel = document.getElementById('f_cliente_doc_tipo');
+  const id = sel ? sel.value : 'NIT';
+  return DOC_TIPOS.find(t => t.id === id) || DOC_TIPOS[0];
 }
+function formatNitCC(raw){
+  return getDocTipo().fmt(String(raw||''));
+}
+function fillDocTipoSelect(){
+  const sel = document.getElementById('f_cliente_doc_tipo');
+  if(!sel) return;
+  sel.innerHTML = '';
+  DOC_TIPOS.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id; o.textContent = t.label;
+    sel.appendChild(o);
+  });
+  const apply = () => {
+    const t = getDocTipo();
+    const inp = document.getElementById('f_cliente_nit');
+    const hint = document.getElementById('hint_doc_tipo');
+    if(inp){ inp.placeholder = t.ph; inp.value = t.fmt(inp.value); }
+    if(hint) hint.textContent = t.hint;
+  };
+  sel.addEventListener('change', apply);
+  apply();
+}
+
 
 /* =========================================================
    POBLAR SELECTS ESTÁTICOS
