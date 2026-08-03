@@ -1560,22 +1560,22 @@ function buildQuoteHTMLWord(){
   ${materialesTable}
 
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background-color:#F3F4F6;border-top:3px solid #C59B27;margin-top:0;">
-    <tr><td align="right" style="padding:14px 18px;">
-      <table cellpadding="0" cellspacing="0" border="0" align="right" style="border-collapse:collapse;width:auto;">
-        <tr><td nowrap align="left" style="font-size:10pt;color:#4B5563;padding:3px 18px 3px 0;">Subtotal:</td><td nowrap align="right" style="font-size:10pt;font-weight:bold;color:#111827;padding:3px 0;">${money(d.subtotal)}</td></tr>
-        <tr><td nowrap align="left" style="font-size:10pt;color:#4B5563;padding:3px 18px 3px 0;">IVA (${d.ivaPct}%):</td><td nowrap align="right" style="font-size:10pt;font-weight:bold;color:#111827;padding:3px 0;">${money(d.iva)}</td></tr>
-        <tr><td nowrap align="left" style="font-size:11pt;font-weight:bold;color:#111827;padding:8px 18px 3px 0;border-top:1px solid #C59B27;">TOTAL:</td><td nowrap align="right" style="font-size:12pt;font-weight:bold;color:#C59B27;padding:8px 0 3px 0;border-top:1px solid #C59B27;">${money(d.total)}</td></tr>
-      </table>
-    </td></tr>
+    <tr>
+      <td valign="top" style="padding:14px 18px;">
+        ${condRows ? `<p style="margin:0 0 6px 0;font-size:10pt;font-weight:bold;color:#111827;">Condiciones de pago:</p>${condRows}` : ''}
+        ${wline('Tiempo de entrega', d.entrega)}
+        ${wline('Validez de la oferta', d.validez)}
+      </td>
+      <td valign="top" nowrap style="padding:14px 18px;border-left:1px solid #9CA3AF;width:1%;">
+        <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:auto;">
+          <tr><td nowrap align="left" style="font-size:10pt;color:#4B5563;padding:3px 18px 3px 0;">Subtotal:</td><td nowrap align="right" style="font-size:10pt;font-weight:bold;color:#111827;padding:3px 0;">${money(d.subtotal)}</td></tr>
+          <tr><td nowrap align="left" style="font-size:10pt;color:#4B5563;padding:3px 18px 3px 0;">IVA (${d.ivaPct}%):</td><td nowrap align="right" style="font-size:10pt;font-weight:bold;color:#111827;padding:3px 0;">${money(d.iva)}</td></tr>
+          <tr><td nowrap align="left" style="font-size:11pt;font-weight:bold;color:#111827;padding:8px 18px 3px 0;border-top:1px solid #C59B27;">TOTAL:</td><td nowrap align="right" style="font-size:12pt;font-weight:bold;color:#C59B27;padding:8px 0 3px 0;border-top:1px solid #C59B27;">${money(d.total)}</td></tr>
+        </table>
+      </td>
+    </tr>
   </table>
 
-  ${(condRows || d.entrega || d.validez) ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background-color:#F3F4F6;border-top:1px solid #E5E7EB;">
-    <tr><td valign="top" style="padding:14px 18px;">
-      ${condRows ? `<p style="margin:0 0 6px 0;font-size:10pt;font-weight:bold;color:#111827;">Condiciones de pago:</p>${condRows}` : ''}
-      ${wline('Tiempo de entrega', d.entrega)}
-      ${wline('Validez de la oferta', d.validez)}
-    </td></tr>
-  </table>` : ''}
 
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-top:3px solid #C59B27;margin-top:18px;">
     <tr>
