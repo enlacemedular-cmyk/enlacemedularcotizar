@@ -1852,7 +1852,30 @@ async function buildPdfDoc(){
 
 
 /* Marca de agua central, solo desde la segunda página. */
+/* Numeración de páginas: rectángulo dorado abajo a la derecha, número en negro. */
+function aplicarNumerosPagina(pdf){
+  try{
+    const total = pdf.internal.getNumberOfPages();
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const w = 11, h = 7;
+    const x = pw - PDF_MARGIN_MM - w;
+    const y = ph - PDF_MARGIN_MM + 1;
+    for(let i = 1; i <= total; i++){
+      pdf.setPage(i);
+      pdf.setFillColor(197, 155, 39);
+      pdf.rect(x, y, w, h, 'F');
+      pdf.setTextColor(17, 24, 39);
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(String(i), x + w/2, y + h/2 + 1.2, { align: 'center' });
+    }
+    pdf.setTextColor(0,0,0);
+  }catch(e){}
+}
+
 function aplicarMarcaAgua(pdf){
+
   try{
     const total = pdf.internal.getNumberOfPages();
     if(total < 2 || !IMG_CENTER_B64 || IMG_CENTER_B64.indexOf('data:') !== 0) return;
