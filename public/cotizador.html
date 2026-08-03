@@ -1840,6 +1840,8 @@ async function buildPdfDoc(){
       }
     }
     aplicarMarcaAgua(pdf);
+    aplicarNumerosPagina(pdf);
+
     return pdf;
   } finally {
     host.innerHTML = '';
