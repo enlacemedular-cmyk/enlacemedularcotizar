@@ -1296,7 +1296,7 @@ function computeQuoteData(){
 
   return {
     numero: g('f_numero'), fecha: g('f_fecha'), vencimiento, tieneVenc,
-    clienteNombre: g('f_cliente_nombre'), clienteEmpresa: g('f_cliente_empresa'), clienteNit: g('f_cliente_nit'),
+    clienteNombre: g('f_cliente_nombre'), clienteEmpresa: g('f_cliente_empresa'), clienteNit: g("f_cliente_nit"), clienteDocTipo: (document.getElementById("f_cliente_doc_tipo")?.value || "NIT"),
     clienteTel: telClienteVal, clienteEmail: g('f_cliente_email'),
     proyNombre: g('f_proy_nombre'), direccionCompleta, encargados: nombresEncargados,
     items: items.map(it => ({ desc: it.desc, cant: it.cant, unidad: it.unidad, valor: it.valor, total: it.cant*it.valor })),
@@ -1394,7 +1394,7 @@ function buildQuoteHTML(){
           <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 8px 0;letter-spacing:0.8px;">CLIENTE</h3>
           ${line('', d.clienteNombre, { style:'font-size:15px;font-weight:700;color:#111827;margin:0 0 4px 0;' })}
           ${line('', d.clienteEmpresa)}
-          ${line('NIT/CC', d.clienteNit)}
+          ${line(d.clienteDocTipo, d.clienteNit)}
           ${line('Tel', d.clienteTel)}
           ${line('Email', d.clienteEmail, { style:'font-size:13px;color:#4B5563;margin:0;' })}
         </td>
@@ -1480,7 +1480,7 @@ function buildQuoteHTML(){
 function modernizeDocument(html, isWord=false){
   let out=html;
   out=out.replace(/background:#FFFFFF url\('data:image\/jpeg;base64,[^']+'\) repeat-y center 120px;background-size:55% auto;/, 'background:#FFFFFF;position:relative;');
-  out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, `<img src="${IMG_HEADER_B64||HEADER_REMOTE}"$1 style="max-width:280px;height:auto;display:block;margin-left:auto;">`);
+  out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, `<img src="${IMG_HEADER_B64||HEADER_REMOTE}"$1 style="max-width:400px;height:auto;display:block;margin-left:auto;">`);
   const watermark=IMG_WATERMARK_B64||WATERMARK_REMOTE;
   const fixed=`<style>@page{size:A4;margin:24mm;background-image:linear-gradient(rgba(255,255,255,.95),rgba(255,255,255,.95)),url('${watermark}');background-position:center;background-repeat:no-repeat;background-size:48% auto}@page:first{background-image:none}table{width:100%}td,th{box-sizing:border-box}.money{white-space:nowrap}</style>`;
   return fixed+out;
@@ -1564,7 +1564,7 @@ function buildQuoteHTMLWord(){
   return `
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
     <tr><td width="45%" valign="middle" style="border-bottom:3px solid #C59B27;padding:0 0 14px 0;">
-      <img src="${LOGO_GRANDE}" width="200" style="display:block;" />
+      <img src="${LOGO_GRANDE}" width="340" style="display:block;" />
     </td>
     <td valign="top" align="right" style="border-bottom:3px solid #C59B27;padding:0 0 14px 0;">
       <p style="margin:0;font-size:20pt;font-weight:bold;color:#111827;">COTIZACIÓN</p>
@@ -1581,7 +1581,7 @@ function buildQuoteHTMLWord(){
         <p style="margin:0 0 6px 0;font-size:9pt;color:#9CA3AF;letter-spacing:1px;">CLIENTE</p>
         <p style="margin:0 0 4px 0;font-size:13pt;font-weight:bold;color:#111827;">${esc(d.clienteNombre)}</p>
         ${wline('', d.clienteEmpresa)}
-        ${wline('NIT/CC', d.clienteNit)}
+        ${wline(d.clienteDocTipo, d.clienteNit)}
         ${wline('Tel', d.clienteTel)}
         ${wline('Email', d.clienteEmail)}
       </td>
