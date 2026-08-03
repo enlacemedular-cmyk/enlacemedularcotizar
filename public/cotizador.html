@@ -1480,7 +1480,11 @@ function buildQuoteHTML(){
 function modernizeDocument(html, isWord=false){
   let out=html;
   out=out.replace(/background:#FFFFFF url\('data:image\/jpeg;base64,[^']+'\) repeat-y center 120px;background-size:55% auto;/, 'background:#FFFFFF;position:relative;');
-  out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, `<img src="${IMG_HEADER_B64||HEADER_REMOTE}"$1 style="max-width:400px;height:auto;display:block;margin-left:auto;">`);
+  const headerSrc = IMG_HEADER_B64||HEADER_REMOTE;
+  out=out.replace(/<img src="data:image\/jpeg;base64,[^"]+"([^>]*?)>/, isWord
+    ? `<img src="${headerSrc}" width="340" style="display:block;">`
+    : `<img src="${headerSrc}"$1 style="max-width:400px;height:auto;display:block;margin-left:auto;">`);
+
   const watermark=IMG_WATERMARK_B64||WATERMARK_REMOTE;
   const fixed=`<style>@page{size:A4;margin:24mm;background-image:linear-gradient(rgba(255,255,255,.95),rgba(255,255,255,.95)),url('${watermark}');background-position:center;background-repeat:no-repeat;background-size:48% auto}@page:first{background-image:none}table{width:100%}td,th{box-sizing:border-box}.money{white-space:nowrap}</style>`;
   return fixed+out;
