@@ -2249,13 +2249,17 @@ function setDocFilter(f){
 function renderDocs(){
   const cont = document.getElementById('doc-list');
   if(!cont) return;
-  const lista = docResults.filter(d => docFilter === 'all' ? true : d.modalidad === docFilter);
+  const q = (document.getElementById('home-search')?.value || '').trim();
+  const lista = docResults
+    .filter(d => docFilter === 'all' ? true : d.modalidad === docFilter)
+    .filter(d => coincideDoc(d, q));
   if(!lista.length){
     cont.innerHTML = docResults.length
-      ? '<div class="home-status">No hay documentos con ese filtro.</div>'
+      ? '<div class="home-status">No hay documentos que coincidan.</div>'
       : '';
     return;
   }
+
   cont.innerHTML = lista.map((d,i)=>{
     const idx = docResults.indexOf(d);
     const cls = d.modalidad === 'TC' ? 'tc' : (d.modalidad === 'MO.TC' ? 'both' : '');
