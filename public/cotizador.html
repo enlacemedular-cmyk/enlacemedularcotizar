@@ -2307,12 +2307,13 @@ function seleccionarDocumento(idx){
     if(d.numero) document.getElementById('f_numero').value = d.numero;
     if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
     if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
-    const modoSel = document.getElementById('f_modo');
+    const modoSel = document.getElementById('f_quote_mode');
     if(modoSel && d.modalidad){
       const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
       modoSel.value = valor;
-      if(typeof changeQuoteMode === 'function') changeQuoteMode();
+      if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
     }
+
   }
   saveState();
   mostrarGenerador();
