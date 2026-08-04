@@ -2377,6 +2377,15 @@ window.addEventListener('DOMContentLoaded', ()=>{
     addEncargado('Cesar Augusto Medina Valderrama');
     addBanco();
   }
+  /* Sincroniza el consecutivo con el número que ya exista en el borrador */
+  try{
+    const numActual = (document.getElementById('f_numero').value || '').match(/(\d+)\s*$/);
+    const guardado = parseInt(localStorage.getItem(LAST_NUM_KEY) || '0', 10) || 0;
+    if(numActual && parseInt(numActual[1],10) > guardado){
+      localStorage.setItem(LAST_NUM_KEY, String(parseInt(numActual[1],10)));
+    }
+  }catch(e){}
+
   if(encargados.length === 0) addEncargado('Cesar Augusto Medina Valderrama');
   if(bancos.length === 0) addBanco();
 
