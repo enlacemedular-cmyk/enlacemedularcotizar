@@ -2137,8 +2137,188 @@ function reiniciarFormulario(silent){
   renderEncargados();
   renderBancos();
   saveState();
-  setStatus('Formulario reiniciado.', 'ok');
+  if(!silent) setStatus('Formulario reiniciado.', 'ok');
+  return true;
 }
+
+/* =========================================================
+   PANTALLA DE INICIO / BUSCADOR ONEDRIVE
+   ========================================================= */
+const SEARCH_WEBHOOK_URL = "https://hook.us2.make.com/x33nlm595u9ten12fnle5li1uo827hdj";
+const LAST_NUM_KEY = 'medular_last_num';
+let docFilter = 'all';
+let docResults = [];
+
+function setHomeStatus(msg, cls){
+  const el = document.getElementById('home-status');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.className = 'home-status' + (cls ? ' ' + cls : '');
+}
+
+function mostrarInicio(){
+  document.body.classList.add('home-mode');
+  window.scrollTo(0,0);
+}
+function mostrarGenerador(){
+  document.body.classList.remove('home-mode');
+  window.scrollTo(0,0);
+}
+function volverInicio(){
+  saveState();
+  mostrarInicio();
+}
+
+function siguienteNumero(){
+  let n = 0;
+  try{ n = parseInt(localStorage.getItem(LAST_NUM_KEY) || '0', 10) || 0; }catch(e){ n = 0; }
+  n = n + 1;
+  try{ localStorage.setItem(LAST_NUM_KEY, String(n)); }catch(e){}
+  return 'MED' + String(n).padStart(4, '0');
+}
+
+function nuevaCotizacion(){
+  reiniciarFormulario(true);
+  document.getElementById('f_numero').value = siguienteNumero();
+  saveState();
+  setStatus('');
+  mostrarGenerador();
+}
+
+function borrarCotizacion(){
+  if(!confirm('¿Borrar esta cotización y volver al inicio?')) return;
+  reiniciarFormulario(true);
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  setStatus('');
+  mostrarInicio();
+}
+
+/* Detecta la modalidad (MO / TC / MO.TC) a partir del nombre del archivo. */
+function modalidadDeNombre(nombre){
+  const base = String(nombre || '').toUpperCase();
+  const tieneMO = /(^|[_\-. ])MO([_\-. ]|$)/.test(base) || /MO\.TC/.test(base);
+  const tieneTC = /(^|[_\-. ])TC([_\-. ]|$)/.test(base) || /MO\.TC/.test(base);
+  if(tieneMO && tieneTC) return 'MO.TC';
+  if(tieneTC) return 'TC';
+  if(tieneMO) return 'MO';
+  return '';
+}
+const MODALIDAD_LABEL = { 'MO':'Mano de obra', 'TC':'Todo costo', 'MO.TC':'Mano de obra + Todo costo' };
+
+/* Descompone "MED0001_Cotización_MO_Cliente_Empresa.pdf" */
+function partesDeNombre(nombre){
+  const limpio = String(nombre || '').replace(/\.(pdf|docx?|PDF|DOCX?)$/,'');
+  const p = limpio.split('_');
+  return {
+    numero: p[0] || '',
+    modalidad: modalidadDeNombre(limpio),
+    cliente: p[3] || '',
+    empresa: p[4] || ''
+  };
+}
+
+function normalizarDocs(data){
+  let arr = data;
+  if(arr && !Array.isArray(arr)){
+    arr = arr.files || arr.value || arr.results || arr.archivos || arr.data || arr.items || [];
+  }
+  if(!Array.isArray(arr)) return [];
+  return arr.map(raw => {
+    const o = (raw && typeof raw === 'object') ? raw : { name: String(raw) };
+    const nombre = o.name || o.nombre || o.fileName || o.nombre_archivo || o.title || '';
+    return {
+      nombre,
+      id: o.id || o.fileId || o.itemId || '',
+      url: o.url || o.webUrl || o.link || o.downloadUrl || '',
+      fecha: o.fecha || o.lastModifiedDateTime || o.modified || o.createdDateTime || '',
+      estado: o.state || o.estado || null,
+      payload: o.payload || o.datos || null,
+      ...partesDeNombre(nombre)
+    };
+  }).filter(d => d.nombre);
+}
+
+function setDocFilter(f){
+  docFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b=>{
+    b.classList.toggle('active', b.dataset.filter === f);
+  });
+  renderDocs();
+}
+
+function renderDocs(){
+  const cont = document.getElementById('doc-list');
+  if(!cont) return;
+  const lista = docResults.filter(d => docFilter === 'all' ? true : d.modalidad === docFilter);
+  if(!lista.length){
+    cont.innerHTML = docResults.length
+      ? '<div class="home-status">No hay documentos con ese filtro.</div>'
+      : '';
+    return;
+  }
+  cont.innerHTML = lista.map((d,i)=>{
+    const idx = docResults.indexOf(d);
+    const cls = d.modalidad === 'TC' ? 'tc' : (d.modalidad === 'MO.TC' ? 'both' : '');
+    const badge = d.modalidad ? `<span class="badge ${cls}">${esc(d.modalidad)}</span>` : '';
+    const meta = [d.numero, d.cliente, d.empresa, d.fecha ? String(d.fecha).slice(0,10) : ''].filter(Boolean).join(' · ');
+    return `<button type="button" class="doc-item" onclick="seleccionarDocumento(${idx})">
+      <div class="doc-main">
+        <div class="doc-name">${esc(d.nombre)}</div>
+        ${meta ? `<div class="doc-meta">${esc(meta)}</div>` : ''}
+      </div>${badge}</button>`;
+  }).join('');
+}
+
+async function buscarDocumentos(){
+  const q = (document.getElementById('home-search').value || '').trim();
+  setHomeStatus('Buscando en OneDrive...');
+  document.getElementById('doc-list').innerHTML = '';
+  try{
+    const res = await fetch(SEARCH_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, filtro: docFilter })
+    });
+    const texto = await res.text();
+    let data = [];
+    try{ data = JSON.parse(texto); }catch(e){ data = []; }
+    docResults = normalizarDocs(data);
+    if(q){
+      const ql = q.toLowerCase();
+      docResults = docResults.filter(d => d.nombre.toLowerCase().includes(ql));
+    }
+    renderDocs();
+    setHomeStatus(docResults.length ? `${docResults.length} documento(s) encontrado(s).` : 'No se encontraron documentos.');
+  }catch(err){
+    setHomeStatus('No se pudo consultar OneDrive. Revisa tu conexión.', 'err');
+  }
+}
+
+function seleccionarDocumento(idx){
+  const d = docResults[idx];
+  if(!d) return;
+  reiniciarFormulario(true);
+
+  if(d.estado && typeof d.estado === 'object'){
+    applyState(d.estado);
+  } else if(d.payload && typeof d.payload === 'object' && d.payload.estado){
+    applyState(d.payload.estado);
+  } else {
+    if(d.numero) document.getElementById('f_numero').value = d.numero;
+    if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
+    if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
+    const modoSel = document.getElementById('f_modo');
+    if(modoSel && d.modalidad){
+      const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
+      modoSel.value = valor;
+      if(typeof changeQuoteMode === 'function') changeQuoteMode();
+    }
+  }
+  saveState();
+  mostrarGenerador();
+  setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
+}
+
 
 /* =========================================================
    INICIALIZACIÓN
