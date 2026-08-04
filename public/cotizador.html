@@ -218,7 +218,39 @@
   }
 </style>
 </head>
-<body>
+<body class="home-mode">
+
+  <div id="home-screen">
+    <div class="home-hero">
+      <img src="https://imglink.cc/cdn/ImDpSCV78S.png" alt="MEDULAR">
+      <h1>MEDULAR</h1>
+      <p>Cotizaciones · construcción y remodelación</p>
+    </div>
+    <div class="home-wrap">
+      <div class="home-card">
+        <h2>Empezar</h2>
+        <button class="home-btn" onclick="nuevaCotizacion()">+ Nueva cotización</button>
+        <div class="home-status" id="home-hint">Se abrirá el generador con un consecutivo nuevo.</div>
+      </div>
+
+      <div class="home-card">
+        <h2>Buscar cotizaciones en OneDrive</h2>
+        <div class="search-row">
+          <input id="home-search" placeholder="Nombre, cliente o número" onkeydown="if(event.key==='Enter')buscarDocumentos()">
+          <button onclick="buscarDocumentos()">Buscar</button>
+        </div>
+        <div class="filter-row">
+          <button class="filter-chip active" data-filter="all" onclick="setDocFilter('all')">Todas</button>
+          <button class="filter-chip" data-filter="MO" onclick="setDocFilter('MO')">Mano de obra</button>
+          <button class="filter-chip" data-filter="TC" onclick="setDocFilter('TC')">Todo costo</button>
+          <button class="filter-chip" data-filter="MO.TC" onclick="setDocFilter('MO.TC')">Ambas</button>
+        </div>
+        <div class="doc-list" id="doc-list"></div>
+        <div class="home-status" id="home-status"></div>
+      </div>
+    </div>
+  </div>
+
 
   <div class="app-header">
     <img src="https://imglink.cc/cdn/ImDpSCV78S.png" alt="MEDULAR">
