@@ -236,8 +236,9 @@
       <div class="home-card">
         <h2>Buscar cotizaciones en OneDrive</h2>
         <div class="search-row">
-          <input id="home-search" placeholder="Nombre, cliente o número" onkeydown="if(event.key==='Enter')buscarDocumentos()">
-          <button onclick="buscarDocumentos()">Buscar</button>
+          <input id="home-search" placeholder="Escribe cualquier palabra: nombre, cliente, empresa o número" autocomplete="off" oninput="filtrarEnVivo()" onfocus="if(!docsCargados) buscarDocumentos()" onkeydown="if(event.key==='Enter')buscarDocumentos()">
+          <button onclick="buscarDocumentos()">Actualizar</button>
+
         </div>
         <div class="filter-row">
           <button class="filter-chip active" data-filter="all" onclick="setDocFilter('all')">Todas</button>
