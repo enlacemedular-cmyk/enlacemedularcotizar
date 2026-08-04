@@ -236,8 +236,9 @@
       <div class="home-card">
         <h2>Buscar cotizaciones en OneDrive</h2>
         <div class="search-row">
-          <input id="home-search" placeholder="Nombre, cliente o número" onkeydown="if(event.key==='Enter')buscarDocumentos()">
-          <button onclick="buscarDocumentos()">Buscar</button>
+          <input id="home-search" placeholder="Escribe cualquier palabra: nombre, cliente, empresa o número" autocomplete="off" oninput="filtrarEnVivo()" onfocus="if(!docsCargados) buscarDocumentos()" onkeydown="if(event.key==='Enter')buscarDocumentos()">
+          <button onclick="buscarDocumentos()">Actualizar</button>
+
         </div>
         <div class="filter-row">
           <button class="filter-chip active" data-filter="all" onclick="setDocFilter('all')">Todas</button>
@@ -2249,13 +2250,17 @@ function setDocFilter(f){
 function renderDocs(){
   const cont = document.getElementById('doc-list');
   if(!cont) return;
-  const lista = docResults.filter(d => docFilter === 'all' ? true : d.modalidad === docFilter);
+  const q = (document.getElementById('home-search')?.value || '').trim();
+  const lista = docResults
+    .filter(d => docFilter === 'all' ? true : d.modalidad === docFilter)
+    .filter(d => coincideDoc(d, q));
   if(!lista.length){
     cont.innerHTML = docResults.length
-      ? '<div class="home-status">No hay documentos con ese filtro.</div>'
+      ? '<div class="home-status">No hay documentos que coincidan.</div>'
       : '';
     return;
   }
+
   cont.innerHTML = lista.map((d,i)=>{
     const idx = docResults.indexOf(d);
     const cls = d.modalidad === 'TC' ? 'tc' : (d.modalidad === 'MO.TC' ? 'both' : '');
@@ -2269,6 +2274,46 @@ function renderDocs(){
   }).join('');
 }
 
+/* Normaliza texto: minúsculas, sin acentos ni signos. */
+function normTxt(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+}
+/* Coincidencia difusa: subsecuencia de caracteres (tolera letras faltantes). */
+function fuzzyIncluye(texto, termino){
+  if(texto.includes(termino)) return true;
+  let i = 0;
+  for(const ch of termino){
+    if(ch === ' ') continue;
+    i = texto.indexOf(ch, i);
+    if(i === -1) return false;
+    i++;
+  }
+  return true;
+}
+function coincideDoc(d, q){
+  if(!q) return true;
+  const texto = normTxt([d.nombre, d.numero, d.cliente, d.empresa, d.modalidad, d.fecha].join(' '));
+  // cada palabra escrita debe aparecer (en cualquier orden y posición)
+  return normTxt(q).split(' ').filter(Boolean).every(t => fuzzyIncluye(texto, t));
+}
+
+let docsCargados = false;
+let buscarTimer = null;
+
+/* Filtra en vivo mientras se escribe (sin volver a consultar OneDrive). */
+function filtrarEnVivo(){
+  if(!docsCargados){
+    clearTimeout(buscarTimer);
+    buscarTimer = setTimeout(()=>buscarDocumentos(), 250);
+    return;
+  }
+  renderDocs();
+}
+
 async function buscarDocumentos(){
   const q = (document.getElementById('home-search').value || '').trim();
   setHomeStatus('Buscando en OneDrive...');
@@ -2277,22 +2322,21 @@ async function buscarDocumentos(){
     const res = await fetch(SEARCH_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, filtro: docFilter })
+      body: JSON.stringify({ query: '', filtro: 'all' })
     });
     const texto = await res.text();
     let data = [];
     try{ data = JSON.parse(texto); }catch(e){ data = []; }
     docResults = normalizarDocs(data);
-    if(q){
-      const ql = q.toLowerCase();
-      docResults = docResults.filter(d => d.nombre.toLowerCase().includes(ql));
-    }
+    docsCargados = true;
     renderDocs();
-    setHomeStatus(docResults.length ? `${docResults.length} documento(s) encontrado(s).` : 'No se encontraron documentos.');
+    const visibles = docResults.filter(d => (docFilter==='all'||d.modalidad===docFilter) && coincideDoc(d, q)).length;
+    setHomeStatus(visibles ? `${visibles} documento(s) encontrado(s).` : 'No se encontraron documentos.');
   }catch(err){
     setHomeStatus('No se pudo consultar OneDrive. Revisa tu conexión.', 'err');
   }
 }
+
 
 function seleccionarDocumento(idx){
   const d = docResults[idx];
