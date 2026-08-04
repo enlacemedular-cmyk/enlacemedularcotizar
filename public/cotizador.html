@@ -2098,8 +2098,8 @@ async function enviarCliente(){
   }
 }
 
-function reiniciarFormulario(){
-  if(!confirm('¿Reiniciar todos los datos de esta cotización? Los datos del contratista NO se van a borrar.')) return;
+function reiniciarFormulario(silent){
+  if(!silent && !confirm('¿Reiniciar todos los datos de esta cotización? Los datos del contratista NO se van a borrar.')) return false;
 
   const keepIds = new Set(['f_con_nombre','f_con_rol','f_con_tel_code','f_con_tel_num','f_con_email']);
 
