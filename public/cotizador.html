@@ -2218,17 +2218,38 @@ function partesDeNombre(nombre){
   };
 }
 
+/* Acepta: array de objetos, array con strings JSON, o un string JSON suelto. */
 function normalizarDocs(data){
   let arr = data;
+  if(typeof arr === 'string'){
+    try{ arr = JSON.parse(arr); }catch(e){ return []; }
+  }
   if(arr && !Array.isArray(arr)){
-    arr = arr.files || arr.value || arr.results || arr.archivos || arr.data || arr.items || [];
+    arr = arr.files || arr.value || arr.results || arr.archivos || arr.data || arr.items || [arr];
   }
   if(!Array.isArray(arr)) return [];
-  return arr.map(raw => {
-    const o = (raw && typeof raw === 'object') ? raw : { name: String(raw) };
-    const nombre = o.name || o.nombre || o.fileName || o.nombre_archivo || o.title || '';
+
+  // Aplana y parsea strings JSON dentro del array
+  const planos = [];
+  arr.forEach(raw => {
+    let o = raw;
+    if(typeof o === 'string'){
+      const t = o.trim();
+      if(t.startsWith('{') || t.startsWith('[')){
+        try{ o = JSON.parse(t); }catch(e){ o = { nombre: t }; }
+      } else {
+        o = { nombre: t };
+      }
+    }
+    if(Array.isArray(o)) planos.push(...o);
+    else if(o && typeof o === 'object') planos.push(o);
+  });
+
+  return planos.map(o => {
+    const nombre = o.nombre || o.name || o.fileName || o.nombre_archivo || o.title || '';
     return {
       nombre,
+      contenido: o.contenido || o.content || o.base64 || '',
       id: o.id || o.fileId || o.itemId || '',
       url: o.url || o.webUrl || o.link || o.downloadUrl || '',
       fecha: o.fecha || o.lastModifiedDateTime || o.modified || o.createdDateTime || '',
@@ -2238,6 +2259,7 @@ function normalizarDocs(data){
     };
   }).filter(d => d.nombre);
 }
+
 
 function setDocFilter(f){
   docFilter = f;
