@@ -2341,21 +2341,43 @@ async function buscarDocumentos(){
   setHomeStatus('Buscando en OneDrive...');
   document.getElementById('doc-list').innerHTML = '';
   try{
-    const res = await fetch(SEARCH_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: '', filtro: 'all' })
-    });
-    const texto = await res.text();
-    let data = [];
-    try{ data = JSON.parse(texto); }catch(e){ data = texto; }
-    docResults = normalizarDocs(data);
+    const res = await fetch(ONEDRIVE_API + '?action=list', { headers: { 'Accept':'application/json' } });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data && data.error ? data.error : 'Error');
+    docResults = normalizarDocs(data.files || []);
     docsCargados = true;
     renderDocs();
     const visibles = docResults.filter(d => (docFilter==='all'||d.modalidad===docFilter) && coincideDoc(d, q)).length;
-    setHomeStatus(visibles ? `${visibles} documento(s) encontrado(s).` : 'No se encontraron documentos.');
+    setHomeStatus(visibles ? `${visibles} documento(s) en la carpeta Cotizaciones.` : 'No se encontraron documentos en la carpeta Cotizaciones.');
   }catch(err){
-    setHomeStatus('No se pudo consultar OneDrive. Revisa tu conexión.', 'err');
+    setHomeStatus('No se pudo consultar OneDrive: ' + (err && err.message ? err.message : 'error de conexión'), 'err');
+  }
+}
+
+/* Descarga el contenido del archivo desde OneDrive (Base64). */
+async function descargarContenidoOneDrive(id){
+  const res = await fetch(ONEDRIVE_API + '?action=download&id=' + encodeURIComponent(id));
+  const data = await res.json();
+  if(!res.ok) throw new Error(data && data.error ? data.error : 'Error de descarga');
+  return data.contenido || '';
+}
+
+/* Guarda / actualiza el estado del generador como JSON en OneDrive. */
+async function guardarEnOneDrive(){
+  const nombre = (window.__archivoOneDrive || (nombreArchivo() + '.json'));
+  setStatus('Guardando en OneDrive...');
+  try{
+    const res = await fetch(ONEDRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ nombre, contenido: { estado: collectState() } })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
+    window.__archivoOneDrive = data.nombre || nombre;
+    setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}".`, 'ok');
+  }catch(err){
+    setStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
 }
 
