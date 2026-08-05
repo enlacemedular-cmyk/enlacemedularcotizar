@@ -2218,17 +2218,38 @@ function partesDeNombre(nombre){
   };
 }
 
+/* Acepta: array de objetos, array con strings JSON, o un string JSON suelto. */
 function normalizarDocs(data){
   let arr = data;
+  if(typeof arr === 'string'){
+    try{ arr = JSON.parse(arr); }catch(e){ return []; }
+  }
   if(arr && !Array.isArray(arr)){
-    arr = arr.files || arr.value || arr.results || arr.archivos || arr.data || arr.items || [];
+    arr = arr.files || arr.value || arr.results || arr.archivos || arr.data || arr.items || [arr];
   }
   if(!Array.isArray(arr)) return [];
-  return arr.map(raw => {
-    const o = (raw && typeof raw === 'object') ? raw : { name: String(raw) };
-    const nombre = o.name || o.nombre || o.fileName || o.nombre_archivo || o.title || '';
+
+  // Aplana y parsea strings JSON dentro del array
+  const planos = [];
+  arr.forEach(raw => {
+    let o = raw;
+    if(typeof o === 'string'){
+      const t = o.trim();
+      if(t.startsWith('{') || t.startsWith('[')){
+        try{ o = JSON.parse(t); }catch(e){ o = { nombre: t }; }
+      } else {
+        o = { nombre: t };
+      }
+    }
+    if(Array.isArray(o)) planos.push(...o);
+    else if(o && typeof o === 'object') planos.push(o);
+  });
+
+  return planos.map(o => {
+    const nombre = o.nombre || o.name || o.fileName || o.nombre_archivo || o.title || '';
     return {
       nombre,
+      contenido: o.contenido || o.content || o.base64 || '',
       id: o.id || o.fileId || o.itemId || '',
       url: o.url || o.webUrl || o.link || o.downloadUrl || '',
       fecha: o.fecha || o.lastModifiedDateTime || o.modified || o.createdDateTime || '',
@@ -2238,6 +2259,7 @@ function normalizarDocs(data){
     };
   }).filter(d => d.nombre);
 }
+
 
 function setDocFilter(f){
   docFilter = f;
@@ -2326,7 +2348,7 @@ async function buscarDocumentos(){
     });
     const texto = await res.text();
     let data = [];
-    try{ data = JSON.parse(texto); }catch(e){ data = []; }
+    try{ data = JSON.parse(texto); }catch(e){ data = texto; }
     docResults = normalizarDocs(data);
     docsCargados = true;
     renderDocs();
@@ -2337,31 +2359,91 @@ async function buscarDocumentos(){
   }
 }
 
+/* ---- Utilidades Base64 ---- */
+function b64Limpio(s){
+  return String(s||'').replace(/^data:[^;]+;base64,/,'').replace(/\s+/g,'');
+}
+function b64ABytes(s){
+  const bin = atob(b64Limpio(s));
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function b64ATexto(s){
+  try{ return new TextDecoder('utf-8').decode(b64ABytes(s)); }catch(e){ return ''; }
+}
+function mimePorNombre(nombre){
+  const n = String(nombre||'').toLowerCase();
+  if(n.endsWith('.pdf')) return 'application/pdf';
+  if(n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if(n.endsWith('.doc')) return 'application/msword';
+  if(n.endsWith('.json')) return 'application/json';
+  return 'application/octet-stream';
+}
+function abrirArchivoBase64(nombre, contenido){
+  try{
+    const blob = new Blob([b64ABytes(contenido)], { type: mimePorNombre(nombre) });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    if(mimePorNombre(nombre) === 'application/pdf'){ a.target = '_blank'; a.rel = 'noopener'; }
+    else { a.download = nombre; }
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    return true;
+  }catch(e){ return false; }
+}
 
 function seleccionarDocumento(idx){
   const d = docResults[idx];
   if(!d) return;
-  reiniciarFormulario(true);
 
-  if(d.estado && typeof d.estado === 'object'){
-    applyState(d.estado);
-  } else if(d.payload && typeof d.payload === 'object' && d.payload.estado){
-    applyState(d.payload.estado);
-  } else {
-    if(d.numero) document.getElementById('f_numero').value = d.numero;
-    if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
-    if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
-    const modoSel = document.getElementById('f_quote_mode');
-    if(modoSel && d.modalidad){
-      const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
-      modoSel.value = valor;
-      if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
+  // 1) Si el contenido Base64 trae el estado del generador (JSON), se edita.
+  let estadoDesdeContenido = null;
+  if(d.contenido){
+    const texto = b64ATexto(d.contenido).trim();
+    if(texto.startsWith('{') || texto.startsWith('[')){
+      try{
+        const parsed = JSON.parse(texto);
+        estadoDesdeContenido = parsed && parsed.estado ? parsed.estado : parsed;
+      }catch(e){ estadoDesdeContenido = null; }
     }
+  }
 
+  const estado = (d.estado && typeof d.estado === 'object') ? d.estado
+    : (d.payload && d.payload.estado) ? d.payload.estado
+    : estadoDesdeContenido;
+
+  if(estado && typeof estado === 'object'){
+    reiniciarFormulario(true);
+    applyState(estado);
+    saveState();
+    mostrarGenerador();
+    setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
+    return;
+  }
+
+  // 2) Archivo binario (PDF/Word): se abre/descarga y se precargan los datos del nombre.
+  const abierto = d.contenido ? abrirArchivoBase64(d.nombre, d.contenido) : false;
+
+  reiniciarFormulario(true);
+  if(d.numero) document.getElementById('f_numero').value = d.numero;
+  if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
+  if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
+  const modoSel = document.getElementById('f_quote_mode');
+  if(modoSel && d.modalidad){
+    const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
+    modoSel.value = valor;
+    if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
   }
   saveState();
   mostrarGenerador();
-  setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
+  setStatus(abierto
+    ? `Se abrió "${d.nombre}". Los datos del nombre se precargaron para editar.`
+    : `Cotización "${d.nombre}" cargada para editar.`, 'ok');
+
 }
 
 
