@@ -464,6 +464,7 @@
       <button class="btn btn-dark" style="background:#1F2937;" onclick="enviarCliente()">✉ Enviar a cliente</button>
     </div>
     <div class="btn-row">
+      <button class="btn btn-dark" style="background:#1F2937;" onclick="guardarEnOneDrive()">☁ Guardar en OneDrive</button>
       <button class="btn btn-dark" onclick="volverInicio()">🏠 Inicio</button>
       <button class="btn btn-dark" style="background:#B91C1C;" onclick="borrarCotizacion()">🗑 Borrar cotización</button>
     </div>
@@ -2145,7 +2146,7 @@ function reiniciarFormulario(silent){
 /* =========================================================
    PANTALLA DE INICIO / BUSCADOR ONEDRIVE
    ========================================================= */
-const SEARCH_WEBHOOK_URL = "https://hook.us2.make.com/x33nlm595u9ten12fnle5li1uo827hdj";
+const ONEDRIVE_API = "/api/public/onedrive";
 const LAST_NUM_KEY = 'medular_last_num';
 let docFilter = 'all';
 let docResults = [];
@@ -2181,6 +2182,7 @@ function siguienteNumero(){
 function nuevaCotizacion(){
   reiniciarFormulario(true);
   document.getElementById('f_numero').value = siguienteNumero();
+  window.__archivoOneDrive = null;
   saveState();
   setStatus('');
   mostrarGenerador();
@@ -2190,6 +2192,7 @@ function borrarCotizacion(){
   if(!confirm('¿Borrar esta cotización y volver al inicio?')) return;
   reiniciarFormulario(true);
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  window.__archivoOneDrive = null;
   setStatus('');
   mostrarInicio();
 }
@@ -2341,21 +2344,43 @@ async function buscarDocumentos(){
   setHomeStatus('Buscando en OneDrive...');
   document.getElementById('doc-list').innerHTML = '';
   try{
-    const res = await fetch(SEARCH_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: '', filtro: 'all' })
-    });
-    const texto = await res.text();
-    let data = [];
-    try{ data = JSON.parse(texto); }catch(e){ data = texto; }
-    docResults = normalizarDocs(data);
+    const res = await fetch(ONEDRIVE_API + '?action=list', { headers: { 'Accept':'application/json' } });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data && data.error ? data.error : 'Error');
+    docResults = normalizarDocs(data.files || []);
     docsCargados = true;
     renderDocs();
     const visibles = docResults.filter(d => (docFilter==='all'||d.modalidad===docFilter) && coincideDoc(d, q)).length;
-    setHomeStatus(visibles ? `${visibles} documento(s) encontrado(s).` : 'No se encontraron documentos.');
+    setHomeStatus(visibles ? `${visibles} documento(s) en la carpeta Cotizaciones.` : 'No se encontraron documentos en la carpeta Cotizaciones.');
   }catch(err){
-    setHomeStatus('No se pudo consultar OneDrive. Revisa tu conexión.', 'err');
+    setHomeStatus('No se pudo consultar OneDrive: ' + (err && err.message ? err.message : 'error de conexión'), 'err');
+  }
+}
+
+/* Descarga el contenido del archivo desde OneDrive (Base64). */
+async function descargarContenidoOneDrive(id){
+  const res = await fetch(ONEDRIVE_API + '?action=download&id=' + encodeURIComponent(id));
+  const data = await res.json();
+  if(!res.ok) throw new Error(data && data.error ? data.error : 'Error de descarga');
+  return data.contenido || '';
+}
+
+/* Guarda / actualiza el estado del generador como JSON en OneDrive. */
+async function guardarEnOneDrive(){
+  const nombre = (window.__archivoOneDrive || (nombreArchivo() + '.json'));
+  setStatus('Guardando en OneDrive...');
+  try{
+    const res = await fetch(ONEDRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ nombre, contenido: { estado: collectState() } })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
+    window.__archivoOneDrive = data.nombre || nombre;
+    setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}".`, 'ok');
+  }catch(err){
+    setStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
 }
 
@@ -2396,37 +2421,46 @@ function abrirArchivoBase64(nombre, contenido){
   }catch(e){ return false; }
 }
 
-function seleccionarDocumento(idx){
+async function seleccionarDocumento(idx){
   const d = docResults[idx];
   if(!d) return;
 
-  // 1) Si el contenido Base64 trae el estado del generador (JSON), se edita.
-  let estadoDesdeContenido = null;
-  if(d.contenido){
-    const texto = b64ATexto(d.contenido).trim();
+  setHomeStatus(`Abriendo "${d.nombre}"...`);
+
+  // 1) Descarga nativa del archivo desde OneDrive.
+  let contenido = '';
+  try{
+    if(d.id) contenido = await descargarContenidoOneDrive(d.id);
+  }catch(err){
+    setHomeStatus('No se pudo descargar el archivo: ' + (err && err.message ? err.message : 'error'), 'err');
+    return;
+  }
+
+  // 2) Si el contenido es el estado del generador (JSON), se edita.
+  let estado = null;
+  if(contenido){
+    const texto = b64ATexto(contenido).trim();
     if(texto.startsWith('{') || texto.startsWith('[')){
       try{
         const parsed = JSON.parse(texto);
-        estadoDesdeContenido = parsed && parsed.estado ? parsed.estado : parsed;
-      }catch(e){ estadoDesdeContenido = null; }
+        estado = parsed && parsed.estado ? parsed.estado : parsed;
+      }catch(e){ estado = null; }
     }
   }
-
-  const estado = (d.estado && typeof d.estado === 'object') ? d.estado
-    : (d.payload && d.payload.estado) ? d.payload.estado
-    : estadoDesdeContenido;
 
   if(estado && typeof estado === 'object'){
     reiniciarFormulario(true);
     applyState(estado);
+    window.__archivoOneDrive = d.nombre;
     saveState();
+    setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
     return;
   }
 
-  // 2) Archivo binario (PDF/Word): se abre/descarga y se precargan los datos del nombre.
-  const abierto = d.contenido ? abrirArchivoBase64(d.nombre, d.contenido) : false;
+  // 3) Archivo binario (PDF/Word): se abre y se precargan los datos del nombre.
+  const abierto = contenido ? abrirArchivoBase64(d.nombre, contenido) : false;
 
   reiniciarFormulario(true);
   if(d.numero) document.getElementById('f_numero').value = d.numero;
@@ -2438,12 +2472,13 @@ function seleccionarDocumento(idx){
     modoSel.value = valor;
     if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
   }
+  window.__archivoOneDrive = null;
   saveState();
+  setHomeStatus('');
   mostrarGenerador();
   setStatus(abierto
     ? `Se abrió "${d.nombre}". Los datos del nombre se precargaron para editar.`
     : `Cotización "${d.nombre}" cargada para editar.`, 'ok');
-
 }
 
 
