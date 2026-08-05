@@ -2182,6 +2182,7 @@ function siguienteNumero(){
 function nuevaCotizacion(){
   reiniciarFormulario(true);
   document.getElementById('f_numero').value = siguienteNumero();
+  window.__archivoOneDrive = null;
   saveState();
   setStatus('');
   mostrarGenerador();
@@ -2191,6 +2192,7 @@ function borrarCotizacion(){
   if(!confirm('¿Borrar esta cotización y volver al inicio?')) return;
   reiniciarFormulario(true);
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  window.__archivoOneDrive = null;
   setStatus('');
   mostrarInicio();
 }
