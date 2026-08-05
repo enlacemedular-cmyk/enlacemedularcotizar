@@ -2418,37 +2418,46 @@ function abrirArchivoBase64(nombre, contenido){
   }catch(e){ return false; }
 }
 
-function seleccionarDocumento(idx){
+async function seleccionarDocumento(idx){
   const d = docResults[idx];
   if(!d) return;
 
-  // 1) Si el contenido Base64 trae el estado del generador (JSON), se edita.
-  let estadoDesdeContenido = null;
-  if(d.contenido){
-    const texto = b64ATexto(d.contenido).trim();
+  setHomeStatus(`Abriendo "${d.nombre}"...`);
+
+  // 1) Descarga nativa del archivo desde OneDrive.
+  let contenido = '';
+  try{
+    if(d.id) contenido = await descargarContenidoOneDrive(d.id);
+  }catch(err){
+    setHomeStatus('No se pudo descargar el archivo: ' + (err && err.message ? err.message : 'error'), 'err');
+    return;
+  }
+
+  // 2) Si el contenido es el estado del generador (JSON), se edita.
+  let estado = null;
+  if(contenido){
+    const texto = b64ATexto(contenido).trim();
     if(texto.startsWith('{') || texto.startsWith('[')){
       try{
         const parsed = JSON.parse(texto);
-        estadoDesdeContenido = parsed && parsed.estado ? parsed.estado : parsed;
-      }catch(e){ estadoDesdeContenido = null; }
+        estado = parsed && parsed.estado ? parsed.estado : parsed;
+      }catch(e){ estado = null; }
     }
   }
-
-  const estado = (d.estado && typeof d.estado === 'object') ? d.estado
-    : (d.payload && d.payload.estado) ? d.payload.estado
-    : estadoDesdeContenido;
 
   if(estado && typeof estado === 'object'){
     reiniciarFormulario(true);
     applyState(estado);
+    window.__archivoOneDrive = d.nombre;
     saveState();
+    setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
     return;
   }
 
-  // 2) Archivo binario (PDF/Word): se abre/descarga y se precargan los datos del nombre.
-  const abierto = d.contenido ? abrirArchivoBase64(d.nombre, d.contenido) : false;
+  // 3) Archivo binario (PDF/Word): se abre y se precargan los datos del nombre.
+  const abierto = contenido ? abrirArchivoBase64(d.nombre, contenido) : false;
 
   reiniciarFormulario(true);
   if(d.numero) document.getElementById('f_numero').value = d.numero;
@@ -2460,12 +2469,13 @@ function seleccionarDocumento(idx){
     modoSel.value = valor;
     if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
   }
+  window.__archivoOneDrive = null;
   saveState();
+  setHomeStatus('');
   mostrarGenerador();
   setStatus(abierto
     ? `Se abrió "${d.nombre}". Los datos del nombre se precargaron para editar.`
     : `Cotización "${d.nombre}" cargada para editar.`, 'ok');
-
 }
 
 
