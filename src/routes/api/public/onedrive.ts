@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const GATEWAY = "https://connector-gateway.lovable.dev/microsoft_onedrive/v1.0";
+const GATEWAY = "https://connector-gateway.lovable.dev/microsoft_onedrive";
 const FOLDER = "Cotizaciones";
 
 function headers() {
