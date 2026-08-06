@@ -2353,6 +2353,9 @@ function reiniciarFormulario(silent){
   document.getElementById('f_fecha').value = todayStr(0);
   document.getElementById('f_vencimiento').value = todayStr(15);
   document.getElementById('f_tiene_vencimiento').checked = true;
+  document.getElementById('f_llave_on').checked = false;
+  document.getElementById('f_llave').value = '';
+  applyLlaveUI();
   document.getElementById('f_iva_pct').value = 0;
   document.getElementById('f_cliente_tel_code').value = '+57';
   document.getElementById('f_proy_pais').value = 'Colombia';
