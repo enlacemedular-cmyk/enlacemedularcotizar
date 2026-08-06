@@ -203,6 +203,20 @@
   .home-status{ font-size:11.5px; color:var(--text-5); margin-top:10px; min-height:14px; text-align:center; }
   .home-status.err{ color:var(--danger); font-weight:700; }
 
+  /* ---------- MODALES (glassmorphism) ---------- */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(17,24,39,.35); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; z-index:9999; padding:18px; }
+  .modal-backdrop.open{ display:flex; }
+  .modal-card{ background:#fff; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.28); max-width:480px; width:100%; padding:26px 24px; text-align:center; }
+  .modal-card h3{ margin:0 0 8px; font-size:17px; color:#111827; }
+  .modal-card p{ margin:0 0 18px; font-size:13.5px; color:#4B5563; line-height:1.5; }
+  .modal-actions{ display:flex; gap:10px; justify-content:center; }
+  .modal-actions button{ flex:1; padding:11px 14px; border-radius:10px; border:0; font-weight:700; cursor:pointer; font-size:14px; }
+  .modal-actions .ok{ background:#C59B27; color:#fff; }
+  .modal-actions .cancel{ background:#E5E7EB; color:#111827; }
+  .preview-card{ max-width:920px; text-align:left; max-height:88vh; display:flex; flex-direction:column; }
+  .preview-body{ overflow:auto; flex:1; border:1px solid #E5E7EB; border-radius:10px; padding:12px; background:#F9FAFB; }
+  .preview-body .doc-scale{ transform:scale(.82); transform-origin:top left; width:122%; }
+
   /* ---------- PRINT AREA (documento final, oculto en pantalla) ---------- */
   #print-area{ position:absolute; left:-9999px; top:0; width:794px; background:#fff; }
 
@@ -393,7 +407,7 @@
       <summary>Totales</summary>
       <div class="card-body">
         <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('totales')" style="display:none;margin:0 0 10px;">Copiar IVA de la otra modalidad</button>
-        <div class="field"><label>IVA (%)</label><input id="f_iva_pct" type="number" inputmode="numeric" class="persist-field" value="19" oninput="renderTotals()" onfocus="this.select()"></div>
+        <div class="field"><label>IVA (%)</label><input id="f_iva_pct" type="number" inputmode="numeric" class="persist-field" value="0" oninput="renderTotals()" onfocus="this.select()"></div>
         <div class="totals-summary"><span>Subtotal</span><span id="t_subtotal">$ 0</span></div>
         <div class="totals-summary"><span>IVA</span><span id="t_iva">$ 0</span></div>
         <div class="totals-summary total"><span>TOTAL</span><span class="val" id="t_total">$ 0</span></div>
@@ -453,6 +467,16 @@
           <div id="bancos-container"></div>
           <button type="button" class="add-btn" onclick="addBanco()">+ Agregar otro banco</button>
         </div>
+
+        <div class="field" style="margin-top:6px;">
+          <label>Llave (opcional)</label>
+          <button type="button" class="add-btn" id="llave-toggle" onclick="toggleLlave()">+ Añadir llave</button>
+          <input type="checkbox" id="f_llave_on" class="persist-field" style="display:none;">
+          <div id="llave-wrap" style="display:none;margin-top:8px;">
+            <input id="f_llave" class="persist-field" placeholder="Escribe el valor de la llave">
+            <div class="hint">Se mostrará en la cotización junto a los datos para transferencia.</div>
+          </div>
+        </div>
       </div>
     </details>
 
@@ -464,11 +488,33 @@
       <button class="btn btn-dark" style="background:#1F2937;" onclick="enviarCliente()">✉ Enviar a cliente</button>
     </div>
     <div class="btn-row">
-      <button class="btn btn-dark" style="background:#1F2937;" onclick="guardarEnOneDrive()">☁ Guardar en OneDrive</button>
+      <button class="btn btn-dark" id="btn-guardar-od" style="background:#1F2937;" onclick="guardarEnOneDrive()">☁ Guardar en OneDrive</button>
       <button class="btn btn-dark" onclick="volverInicio()">🏠 Inicio</button>
       <button class="btn btn-dark" style="background:#B91C1C;" onclick="borrarCotizacion()">🗑 Borrar cotización</button>
     </div>
     <div class="status" id="status-msg"></div>
+  </div>
+
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal-card">
+      <h3>¿Está seguro de realizar esta acción?</h3>
+      <p id="confirm-text"></p>
+      <div class="modal-actions">
+        <button class="cancel" onclick="cerrarConfirm(false)">Cancelar</button>
+        <button class="ok" onclick="cerrarConfirm(true)">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="preview-modal">
+    <div class="modal-card preview-card">
+      <h3 id="preview-title">Vista previa</h3>
+      <div class="preview-body" id="preview-body"></div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="cancel" onclick="cerrarPreview()">← Retroceder</button>
+        <button class="ok" onclick="cerrarPreview()">Cerrar</button>
+      </div>
+    </div>
   </div>
 
   <div id="print-area"></div>
@@ -598,7 +644,12 @@ const MATERIAL_OPTIONS = [
 ];
 
 const DELIVERY_OPTIONS = ["8 días hábiles","15 días hábiles","20 días hábiles","30 días hábiles","45 días hábiles","60 días hábiles","90 días hábiles","Personalizado"];
-const VALIDITY_OPTIONS = ["8 días","15 días","30 días","45 días","60 días","Personalizado"];
+const VALIDEZ_PERMANENTE = "Vigencia permanente (mano de obra)";
+const VALIDITY_OPTIONS = ["8 días","15 días","30 días","45 días","60 días",VALIDEZ_PERMANENTE,"Personalizado"];
+const TEXTO_VALIDEZ_PERMANENTE = "Vigencia permanente: el precio de la mano de obra cotizada se mantiene fijo en el tiempo.";
+const TEXTO_VALIDEZ_TC = "Al ser una cotización a Todo Costo, los precios de los materiales están sujetos a variaciones del mercado, por lo que posterior al vencimiento de estos días se posibilita el aumento del precio debido a la volatilidad de los costos de suministro.";
+const TITULAR_FIJO = "Cesar Augusto Medina Valderrama";
+const CC_FIJA = "71.220.645";
 
 const BANKS = ["Bancolombia","Davivienda","Banco de Bogotá","BBVA Colombia","Banco Popular","Banco Agrario",
 "Banco Caja Social","Scotiabank Colpatria","Banco AV Villas","Banco de Occidente","Banco Falabella",
@@ -667,7 +718,7 @@ let activeQuoteType = 'labor';
 let quoteStates = { labor:null, allcost:null };
 
 function blankQuoteState(){
-  return { items:[], materiales:[], condiciones:[], ivaPct:19, entregaTipo:DELIVERY_OPTIONS[2], entregaCustom:'', validezTipo:VALIDITY_OPTIONS[1], validezCustom:'' };
+  return { items:[], materiales:[], condiciones:[], ivaPct:0, entregaTipo:DELIVERY_OPTIONS[2], entregaCustom:'', validezTipo:VALIDITY_OPTIONS[1], validezCustom:'' };
 }
 function snapshotActiveQuote(){
   return {
@@ -1085,7 +1136,7 @@ function renderEncargados(){
    ========================================================= */
 function addBanco(prefill){
   const id = bancoIdCounter++;
-  bancos.push({ id, banco: BANKS[0], bancoOtro:'', tipo:'Ahorros', numero:'', titular:'', cc:'', ...(prefill||{}) });
+  bancos.push({ id, banco: BANKS[0], bancoOtro:'', tipo:'Ahorros', numero:'', titular:TITULAR_FIJO, cc:CC_FIJA, ...(prefill||{}) });
   renderBancos();
   saveState();
 }
@@ -1233,9 +1284,38 @@ function getEntregaTexto(){
   const sel = document.getElementById('f_entrega_tipo').value;
   return sel === 'Personalizado' ? document.getElementById('f_entrega_custom').value : sel;
 }
+function tipoCotizacionActual(){
+  if(currentModalityLabel === 'Todo costo') return 'allcost';
+  if(currentModalityLabel === 'Mano de obra') return 'labor';
+  return activeQuoteType;
+}
 function getValidezTexto(){
   const sel = document.getElementById('f_validez_tipo').value;
-  return sel === 'Personalizado' ? document.getElementById('f_validez_custom').value : sel;
+  if(sel === VALIDEZ_PERMANENTE) return TEXTO_VALIDEZ_PERMANENTE;
+  const base = (sel === 'Personalizado' ? document.getElementById('f_validez_custom').value : sel) || '';
+  if(!base) return '';
+  if(tipoCotizacionActual() === 'allcost') return base + '. ' + TEXTO_VALIDEZ_TC;
+  return base;
+}
+
+/* ---- Llave (campo opcional del cotizante) ---- */
+function toggleLlave(){
+  const chk = document.getElementById('f_llave_on');
+  chk.checked = !chk.checked;
+  applyLlaveUI();
+  saveState();
+}
+function applyLlaveUI(){
+  const on = document.getElementById('f_llave_on')?.checked;
+  const wrap = document.getElementById('llave-wrap');
+  const btn = document.getElementById('llave-toggle');
+  if(wrap) wrap.style.display = on ? '' : 'none';
+  if(btn) btn.textContent = on ? '− Quitar llave' : '+ Añadir llave';
+}
+function getLlave(){
+  const on = document.getElementById('f_llave_on')?.checked;
+  const v = document.getElementById('f_llave')?.value || '';
+  return on ? v.trim() : '';
 }
 
 /* =========================================================
@@ -1326,6 +1406,7 @@ function applyState(state){
   toggleCiudadOtra();
   toggleCustom('entrega');
   toggleCustom('validez');
+  applyLlaveUI();
   renderItems();
   renderMateriales();
   renderCondiciones();
@@ -1395,6 +1476,7 @@ function computeQuoteData(){
     entrega: getEntregaTexto(), validez: getValidezTexto(),
     subtotal, iva, total, ivaPct,
     firmaSrc, conNombre: g('f_con_nombre'), conRol: g('f_con_rol'), conTel: telConVal, conEmail: g('f_con_email'),
+    llave: getLlave(),
     bancos: bancosData
   };
 }
@@ -1548,9 +1630,10 @@ function buildQuoteHTML(){
               <p style="font-size:11px;font-weight:700;color:#111827;margin:0;">${esc(d.conNombre)}${rolConVal}</p>
               ${(d.conTel || d.conEmail) ? `<p style="font-size:11px;color:#6B7280;margin:1px 0 0 0;">${[esc(d.conTel), esc(d.conEmail)].filter(Boolean).join(' | ')}</p>` : ''}
             </div>
-            ${bancosHTML ? `<div style="margin-top:10px;border-left:3px solid #C59B27;padding-left:10px;font-size:11px;color:#4B5563;line-height:1.3;">
+            ${(bancosHTML || d.llave) ? `<div style="margin-top:10px;border-left:3px solid #C59B27;padding-left:10px;font-size:11px;color:#4B5563;line-height:1.3;">
               <p style="margin:0 0 2px 0;font-weight:700;color:#374151;">DATOS PARA TRANSFERENCIA</p>
               ${bancosHTML}
+              ${d.llave ? `<p style="margin:2px 0 0 0;"><strong style="color:#111827;">Llave:</strong> ${esc(d.llave)}</p>` : ''}
             </div>` : ''}
           </td>
           <td style="vertical-align:top;width:50%;">
@@ -1823,6 +1906,7 @@ function buildPayload(){
       cc_titular: b.cc || null
     })).filter(b => b.banco || b.numero_cuenta),
 
+    llave: getLlave() || null,
     generado_en: new Date().toISOString()
   };
 }
@@ -2069,32 +2153,185 @@ async function downloadWord(){
 }
 
 
+/* =========================================================
+   MODALES DE CONFIRMACIÓN Y VISTA PREVIA
+   ========================================================= */
+let _confirmResolve = null;
+function confirmarAccion(texto){
+  return new Promise(res=>{
+    _confirmResolve = res;
+    const t = document.getElementById('confirm-text');
+    if(t) t.textContent = texto || '';
+    document.getElementById('confirm-modal').classList.add('open');
+  });
+}
+function cerrarConfirm(v){
+  document.getElementById('confirm-modal').classList.remove('open');
+  if(_confirmResolve){ const r=_confirmResolve; _confirmResolve=null; r(v); }
+}
+let _previewURL = null;
+function abrirPreview(titulo, html){
+  document.getElementById('preview-title').textContent = titulo || 'Vista previa';
+  document.getElementById('preview-body').innerHTML = html || '';
+  document.getElementById('preview-modal').classList.add('open');
+}
+function cerrarPreview(){
+  document.getElementById('preview-modal').classList.remove('open');
+  document.getElementById('preview-body').innerHTML = '';
+  if(_previewURL){ URL.revokeObjectURL(_previewURL); _previewURL = null; }
+}
+
+/* ---- Bloqueo del guardado tras un envío exitoso ---- */
+function bloquearGuardado(){
+  const b = document.getElementById('btn-guardar-od');
+  if(!b) return;
+  b.disabled = true;
+  b.textContent = '☁ Guardar en OneDrive (Ya Guardado/Enviado)';
+  b.style.opacity = '.6';
+  b.style.cursor = 'not-allowed';
+}
+function desbloquearGuardado(){
+  const b = document.getElementById('btn-guardar-od');
+  if(!b) return;
+  b.disabled = false;
+  b.textContent = '☁ Guardar en OneDrive';
+  b.style.opacity = '';
+  b.style.cursor = '';
+}
+
+/* =========================================================
+   CORREO HTML PREMIUM PARA EL CLIENTE
+   ========================================================= */
+function buildEmailHTML(){
+  const d = computeQuoteData();
+  const filas = d.items.map((it,i) => `
+      <tr style="background:${i%2 ? '#FFFFFF' : '#F9FAFB'};">
+        <td style="padding:9px 10px;border:1px solid #E5E7EB;font-size:13px;color:#1F2937;">${esc(it.desc||'')}</td>
+        <td style="padding:9px 10px;border:1px solid #E5E7EB;font-size:13px;color:#4B5563;text-align:center;">${esc(String(it.cant||0))} ${esc(it.unidad||'')}</td>
+        <td style="padding:9px 10px;border:1px solid #E5E7EB;font-size:13px;color:#4B5563;text-align:right;">${money(it.valor)}</td>
+        <td style="padding:9px 10px;border:1px solid #E5E7EB;font-size:13px;color:#111827;font-weight:700;text-align:right;">${money(it.total)}</td>
+      </tr>`).join('');
+
+  const docLinea = d.clienteNit ? `${esc(d.clienteDocTipo||'NIT')}: ${esc(d.clienteNit)}` : '';
+
+  return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background:#F3F4F6;font-family:Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F4F6;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:96%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 4px 18px rgba(17,24,39,.08);">
+        <tr><td style="background:#111827;padding:26px 30px;border-bottom:4px solid #C59B27;">
+          <p style="margin:0;font-size:12px;letter-spacing:3px;color:#C59B27;text-transform:uppercase;">MEDULAR</p>
+          <h1 style="margin:6px 0 0 0;font-size:24px;font-weight:400;letter-spacing:1px;color:#FFFFFF;">Cotización Comercial</h1>
+        </td></tr>
+        <tr><td style="padding:26px 30px 8px 30px;">
+          <p style="margin:0 0 16px 0;font-size:14px;color:#374151;line-height:1.6;">Estimado(a) ${esc(d.clienteNombre||'cliente')}, adjuntamos la cotización solicitada. A continuación encontrará el resumen:</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F4F6;border-radius:10px;">
+            <tr><td style="padding:16px 18px;font-size:13px;color:#374151;line-height:1.7;">
+              <strong style="color:#111827;">N.º de cotización:</strong> ${esc(d.numero||'')}<br>
+              <strong style="color:#111827;">Cliente:</strong> ${esc(d.clienteNombre||'')}${d.clienteEmpresa?` · ${esc(d.clienteEmpresa)}`:''}<br>
+              ${docLinea ? `<strong style="color:#111827;">Documento:</strong> ${docLinea}<br>` : ''}
+              <strong style="color:#111827;">Fecha:</strong> ${esc(d.fecha||'')}
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:18px 30px 6px 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <thead><tr style="background:#111827;">
+              <th align="left" style="padding:10px;border:1px solid #111827;font-size:12px;color:#FFFFFF;">Descripción</th>
+              <th align="center" style="padding:10px;border:1px solid #111827;font-size:12px;color:#FFFFFF;">Cant.</th>
+              <th align="right" style="padding:10px;border:1px solid #111827;font-size:12px;color:#FFFFFF;">Vr. unitario</th>
+              <th align="right" style="padding:10px;border:1px solid #111827;font-size:12px;color:#FFFFFF;">Total</th>
+            </tr></thead>
+            <tbody>${filas}</tbody>
+          </table>
+          <table role="presentation" width="100%" style="margin-top:12px;">
+            <tr><td align="right" style="font-size:13px;color:#4B5563;padding:2px 0;">Subtotal: <strong style="color:#111827;">${money(d.subtotal)}</strong></td></tr>
+            <tr><td align="right" style="font-size:13px;color:#4B5563;padding:2px 0;">IVA (${esc(String(d.ivaPct))}%): <strong style="color:#111827;">${money(d.iva)}</strong></td></tr>
+            <tr><td align="right" style="font-size:16px;color:#C59B27;padding:6px 0;font-weight:700;">TOTAL: ${money(d.total)}</td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:10px 30px 26px 30px;">
+          <p style="margin:0 0 4px 0;font-size:12px;color:#6B7280;">${d.entrega?`<strong style="color:#374151;">Tiempo de entrega:</strong> ${esc(d.entrega)}`:''}</p>
+          <p style="margin:0;font-size:12px;color:#6B7280;">${d.validez?`<strong style="color:#374151;">Validez de la oferta:</strong> ${esc(d.validez)}`:''}</p>
+        </td></tr>
+        <tr><td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:20px 30px;">
+          <p style="margin:0;font-size:13px;font-weight:700;color:#111827;">${esc(d.conNombre||'')}</p>
+          <p style="margin:2px 0 0 0;font-size:12px;color:#6B7280;">${esc(d.conRol||'')} · MEDULAR</p>
+          <p style="margin:6px 0 0 0;font-size:12px;color:#6B7280;">${[esc(d.conTel||''), esc(d.conEmail||'')].filter(Boolean).join(' · ')}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table></body></html>`;
+}
+
+function blobABase64(blob){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> res(String(fr.result||'').replace(/^data:[^;]+;base64,/,''));
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
 async function enviarCliente(){
   if(!checkPercentBeforeAction()) return;
+  const email = (document.getElementById('f_cliente_email')?.value || '').trim();
+  const ok = await confirmarAccion('Se generará el PDF, se guardará en OneDrive' + (email ? ` y se enviará por correo a ${email}.` : '.'));
+  if(!ok) return;
+
   setStatus('Generando PDF y enviando...');
   try{
     const payload = buildPayload();
     const nombre = nombreArchivo() + '.pdf';
+    const correoHTML = buildEmailHTML();
     let blob = null;
     try{
       const pdf = await buildPdfDoc();
       blob = pdf.output('blob');
     }catch(e){ blob = null; }
 
+    /* A) Webhook de Make (genera y distribuye el documento) */
     if(blob){
       const fd = new FormData();
       fd.append('archivo', blob, nombre);
       fd.append('nombre_archivo', nombre);
       fd.append('payload', JSON.stringify(payload));
+      fd.append('cliente_email', email);
+      fd.append('enviar_correo', email ? 'true' : 'false');
+      fd.append('correo_asunto', `Cotización ${payload.numero_cotizacion || ''} · MEDULAR`);
+      fd.append('correo_html', correoHTML);
       await fetch(WEBHOOK_URL, { method: 'POST', body: fd });
     } else {
       await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ ...payload, nombre_archivo: nombre })
+        body: JSON.stringify({ ...payload, nombre_archivo: nombre, cliente_email: email, enviar_correo: !!email, correo_asunto: `Cotización ${payload.numero_cotizacion || ''} · MEDULAR`, correo_html: correoHTML })
       });
     }
-    setStatus('Enviado correctamente ✓', 'ok');
+
+    /* B) Guardado nativo del PDF y del estado editable en OneDrive */
+    let guardado = false;
+    if(blob){
+      try{
+        const b64 = await blobABase64(blob);
+        const res = await fetch(ONEDRIVE_API, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ nombre, base64: b64, mime: 'application/pdf' })
+        });
+        guardado = res.ok;
+      }catch(e){ guardado = false; }
+    }
+    try{
+      await fetch(ONEDRIVE_API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nombre: nombreArchivo() + '.json', contenido: { estado: collectState() } })
+      });
+      window.__archivoOneDrive = nombreArchivo() + '.json';
+    }catch(e){}
+
+    bloquearGuardado();
+    setStatus(`Enviado correctamente ✓${guardado ? ' · PDF guardado en OneDrive' : ''}${email ? ' · correo enviado a ' + email : ''}`, 'ok');
   }catch(err){
     setStatus('No se pudo enviar. Revisa tu conexión a internet.', 'err');
   }
@@ -2116,7 +2353,7 @@ function reiniciarFormulario(silent){
   document.getElementById('f_fecha').value = todayStr(0);
   document.getElementById('f_vencimiento').value = todayStr(15);
   document.getElementById('f_tiene_vencimiento').checked = true;
-  document.getElementById('f_iva_pct').value = 19;
+  document.getElementById('f_iva_pct').value = 0;
   document.getElementById('f_cliente_tel_code').value = '+57';
   document.getElementById('f_proy_pais').value = 'Colombia';
   document.getElementById('f_entrega_tipo').value = DELIVERY_OPTIONS[2];
@@ -2179,20 +2416,49 @@ function siguienteNumero(){
   return 'MED' + String(n).padStart(4, '0');
 }
 
-function nuevaCotizacion(){
+/* Consecutivo inteligente: toma el número más alto que exista en OneDrive. */
+function maxNumeroOneDrive(){
+  let max = 0;
+  docResults.forEach(d=>{
+    const m = String(d.nombre||'').toUpperCase().match(/MED\s*(\d{3,})/);
+    if(m){ const n = parseInt(m[1],10); if(n > max) max = n; }
+  });
+  return max;
+}
+async function siguienteNumeroInteligente(){
+  try{
+    const res = await fetch(ONEDRIVE_API + '?action=list');
+    const data = await res.json();
+    if(res.ok){ docResults = normalizarDocs(data.files || []); docsCargados = true; renderDocs(); }
+  }catch(e){}
+  let local = 0;
+  try{ local = parseInt(localStorage.getItem(LAST_NUM_KEY) || '0', 10) || 0; }catch(e){}
+  const n = Math.max(maxNumeroOneDrive(), local) + 1;
+  try{ localStorage.setItem(LAST_NUM_KEY, String(n)); }catch(e){}
+  return 'MED' + String(n).padStart(4, '0');
+}
+
+async function nuevaCotizacion(){
+  setHomeStatus('Calculando el consecutivo desde OneDrive...');
   reiniciarFormulario(true);
-  document.getElementById('f_numero').value = siguienteNumero();
+  const numero = await siguienteNumeroInteligente();
+  document.getElementById('f_numero').value = numero;
   window.__archivoOneDrive = null;
+  desbloquearGuardado();
   saveState();
+  setHomeStatus('');
   setStatus('');
   mostrarGenerador();
 }
 
-function borrarCotizacion(){
-  if(!confirm('¿Borrar esta cotización y volver al inicio?')) return;
+async function borrarCotizacion(){
+  const ok = await confirmarAccion('Se limpiarán todos los datos del formulario y volverás al inicio. No se elimina ningún archivo de OneDrive.');
+  if(!ok) return;
   reiniciarFormulario(true);
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
   window.__archivoOneDrive = null;
+  desbloquearGuardado();
+  saveState();
   setStatus('');
   mostrarInicio();
 }
@@ -2321,9 +2587,14 @@ function fuzzyIncluye(texto, termino){
 }
 function coincideDoc(d, q){
   if(!q) return true;
-  const texto = normTxt([d.nombre, d.numero, d.cliente, d.empresa, d.modalidad, d.fecha].join(' '));
-  // cada palabra escrita debe aparecer (en cualquier orden y posición)
-  return normTxt(q).split(' ').filter(Boolean).every(t => fuzzyIncluye(texto, t));
+  const campos = [d.nombre, d.numero, d.cliente, d.empresa, d.modalidad, d.fecha].join(' ');
+  const crudo = String(campos).toLowerCase();
+  const texto = normTxt(campos);
+  const term = String(q).toLowerCase().trim();
+  if(crudo.includes(term)) return true;
+  const tokens = normTxt(q).split(' ').filter(Boolean);
+  if(!tokens.length) return true;
+  return tokens.every(t => texto.includes(t) || crudo.includes(t) || fuzzyIncluye(texto, t));
 }
 
 let docsCargados = false;
@@ -2452,15 +2723,31 @@ async function seleccionarDocumento(idx){
     reiniciarFormulario(true);
     applyState(estado);
     window.__archivoOneDrive = d.nombre;
+    desbloquearGuardado();
     saveState();
     setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
+    try{
+      await preloadImages();
+      abrirPreview(d.nombre, `<div class="doc-scale">${buildExportHTML(false)}</div>`);
+    }catch(e){}
     return;
   }
 
-  // 3) Archivo binario (PDF/Word): se abre y se precargan los datos del nombre.
-  const abierto = contenido ? abrirArchivoBase64(d.nombre, contenido) : false;
+  // 3) Archivo binario (PDF/Word): se previsualiza dentro de la app, sin descargarlo.
+  let vistaPrevia = '';
+  if(contenido && mimePorNombre(d.nombre) === 'application/pdf'){
+    try{
+      const blob = new Blob([b64ABytes(contenido)], { type:'application/pdf' });
+      if(_previewURL) URL.revokeObjectURL(_previewURL);
+      _previewURL = URL.createObjectURL(blob);
+      vistaPrevia = `<iframe src="${_previewURL}" style="width:100%;height:62vh;border:0;"></iframe>`;
+    }catch(e){ vistaPrevia = ''; }
+  }
+  if(!vistaPrevia){
+    vistaPrevia = `<p style="font-size:13px;color:#4B5563;margin:0;">No hay vista previa disponible para este archivo. Los datos del nombre se cargaron en el generador.</p>`;
+  }
 
   reiniciarFormulario(true);
   if(d.numero) document.getElementById('f_numero').value = d.numero;
@@ -2473,12 +2760,12 @@ async function seleccionarDocumento(idx){
     if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
   }
   window.__archivoOneDrive = null;
+  desbloquearGuardado();
   saveState();
   setHomeStatus('');
   mostrarGenerador();
-  setStatus(abierto
-    ? `Se abrió "${d.nombre}". Los datos del nombre se precargaron para editar.`
-    : `Cotización "${d.nombre}" cargada para editar.`, 'ok');
+  abrirPreview(d.nombre, vistaPrevia);
+  setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
 }
 
 
@@ -2551,6 +2838,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   if(bancos.length === 0) addBanco();
 
   bindInputFilters();
+  applyLlaveUI();
   toggleVencimiento();
   toggleCustom('entrega');
   toggleCustom('validez');
