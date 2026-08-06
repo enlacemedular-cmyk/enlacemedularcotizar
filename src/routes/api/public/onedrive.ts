@@ -79,15 +79,35 @@ export const Route = createFileRoute("/api/public/onedrive")({
         const h = headers();
         if (!h) return json({ error: "Conexión de OneDrive no configurada." }, 500);
 
-        const body = (await request.json()) as { nombre?: string; contenido?: unknown };
+        const body = (await request.json()) as {
+          nombre?: string;
+          contenido?: unknown;
+          base64?: string;
+          mime?: string;
+        };
         const nombre = safeName(String(body.nombre || "").trim());
         if (!nombre) return json({ error: "Falta el nombre del archivo." }, 400);
-        if (body.contenido == null) return json({ error: "Falta el contenido." }, 400);
 
-        const payload = JSON.stringify(body.contenido, null, 2);
+        let payload: BodyInit;
+        let contentType: string;
+
+        if (typeof body.base64 === "string" && body.base64.length) {
+          const clean = body.base64.replace(/^data:[^;]+;base64,/, "").replace(/\s+/g, "");
+          const bin = atob(clean);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          payload = bytes;
+          contentType = body.mime || "application/octet-stream";
+        } else if (body.contenido != null) {
+          payload = JSON.stringify(body.contenido, null, 2);
+          contentType = "application/json";
+        } else {
+          return json({ error: "Falta el contenido." }, 400);
+        }
+
         const res = await fetch(
           `${GATEWAY}/me/drive/root:/${encodeURIComponent(FOLDER)}/${encodeURIComponent(nombre)}:/content`,
-          { method: "PUT", headers: { ...h, "Content-Type": "application/json" }, body: payload },
+          { method: "PUT", headers: { ...h, "Content-Type": contentType }, body: payload },
         );
         const text = await res.text();
         if (!res.ok) {
@@ -97,6 +117,7 @@ export const Route = createFileRoute("/api/public/onedrive")({
         const saved = JSON.parse(text) as Record<string, unknown>;
         return json({ ok: true, id: saved["id"], nombre: saved["name"] });
       },
+
     },
   },
 });
