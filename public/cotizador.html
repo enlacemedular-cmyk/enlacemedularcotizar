@@ -192,8 +192,8 @@
   }
   .doc-item:active{ opacity:.85; }
   .doc-item .doc-main{ flex:1; min-width:0; }
-  .doc-item .doc-name{ font-size:13px; font-weight:700; color:var(--text-1); word-break:break-word; }
-  .doc-item .doc-meta{ font-size:11px; color:var(--text-5); margin-top:2px; }
+  .doc-item .doc-name{ font-size:13px; font-weight:700; color:var(--text-1); word-break:break-all; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .doc-item .doc-meta{ font-size:11px; color:var(--text-5); margin-top:2px; word-break:break-word; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .badge{
     flex:0 0 auto; font-size:10px; font-weight:800; padding:4px 8px; border-radius:6px;
     background:var(--gold); color:#fff; letter-spacing:0.4px;
@@ -216,6 +216,15 @@
   .preview-card{ max-width:920px; text-align:left; max-height:88vh; display:flex; flex-direction:column; }
   .preview-body{ overflow:auto; flex:1; border:1px solid #E5E7EB; border-radius:10px; padding:12px; background:#F9FAFB; }
   .preview-body .doc-scale{ transform:scale(.82); transform-origin:top left; width:122%; }
+  .preview-body iframe{ width:100%; height:62vh; border:0; display:block; }
+  @media (max-width:720px){
+    .modal-backdrop{ padding:8px; }
+    .preview-card{ max-height:94vh; padding:16px 12px; border-radius:12px; }
+    .preview-body{ padding:6px; -webkit-overflow-scrolling:touch; }
+    .preview-body .doc-scale{ transform:scale(.42); width:238%; }
+    .preview-body iframe{ height:66vh; min-height:340px; }
+    .modal-actions{ flex-direction:column; }
+  }
 
   /* ---------- PRINT AREA (documento final, oculto en pantalla) ---------- */
   #print-area{ position:absolute; left:-9999px; top:0; width:794px; background:#fff; }
@@ -1560,9 +1569,9 @@ function buildQuoteHTML(){
       </tr>
     </table>
 
-    <table class="avoid-break" style="width:100%;border-collapse:collapse;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+    <table class="avoid-break" style="width:100%;table-layout:fixed;border-collapse:collapse;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
       <tr>
-        <td style="padding:20px 28px;vertical-align:top;width:50%;">
+        <td style="padding:20px 28px;vertical-align:top;width:50%;max-width:50%;word-break:break-word;overflow-wrap:anywhere;">
           <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 8px 0;letter-spacing:0.8px;">CLIENTE</h3>
           ${line('', d.clienteNombre, { style:'font-size:15px;font-weight:700;color:#111827;margin:0 0 4px 0;' })}
           ${line('', d.clienteEmpresa)}
@@ -1570,7 +1579,7 @@ function buildQuoteHTML(){
           ${line('Tel', d.clienteTel)}
           ${line('Email', d.clienteEmail, { style:'font-size:13px;color:#4B5563;margin:0;' })}
         </td>
-        <td style="padding:20px 28px;vertical-align:top;width:50%;text-align:right;">
+        <td style="padding:20px 28px;vertical-align:top;width:50%;max-width:50%;text-align:right;word-break:break-word;overflow-wrap:anywhere;">
           <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 8px 0;letter-spacing:0.8px;">PROYECTO</h3>
           ${line('', d.proyNombre, { style:'font-size:15px;font-weight:700;color:#111827;margin:0 0 4px 0;' })}
           ${line('', d.direccionCompleta)}
@@ -1754,7 +1763,7 @@ function buildQuoteHTMLWord(){
 
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background-color:#F9FAFB;margin-top:14px;">
     <tr>
-      <td width="50%" valign="top" style="padding:16px;">
+      <td width="50%" valign="top" style="padding:16px;word-break:break-word;overflow-wrap:anywhere;">
         <p style="margin:0 0 6px 0;font-size:9pt;color:#9CA3AF;letter-spacing:1px;">CLIENTE</p>
         <p style="margin:0 0 4px 0;font-size:13pt;font-weight:bold;color:#111827;">${esc(d.clienteNombre)}</p>
         ${wline('', d.clienteEmpresa)}
@@ -1762,7 +1771,7 @@ function buildQuoteHTMLWord(){
         ${wline('Tel', d.clienteTel)}
         ${wline('Email', d.clienteEmail)}
       </td>
-      <td width="50%" valign="top" align="right" style="padding:16px;">
+      <td width="50%" valign="top" align="right" style="padding:16px;word-break:break-word;overflow-wrap:anywhere;">
         <p style="margin:0 0 6px 0;font-size:9pt;color:#9CA3AF;letter-spacing:1px;">PROYECTO</p>
         <p style="margin:0 0 4px 0;font-size:13pt;font-weight:bold;color:#111827;">${esc(d.proyNombre)}</p>
         ${wline('', d.direccionCompleta)}
