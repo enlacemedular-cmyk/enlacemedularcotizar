@@ -2775,9 +2775,11 @@ async function seleccionarDocumento(idx){
     return;
   }
 
-  // 2) Si el contenido es el estado del generador (JSON), se edita.
+  // 2) Estado original intacto: metadatos del PDF, JSON heredado o caché local.
   let estado = null;
+  let bytes = null;
   if(contenido){
+    try{ bytes = b64ABytes(contenido); }catch(e){ bytes = null; }
     const texto = b64ATexto(contenido).trim();
     if(texto.startsWith('{') || texto.startsWith('[')){
       try{
@@ -2785,55 +2787,48 @@ async function seleccionarDocumento(idx){
         estado = parsed && parsed.estado ? parsed.estado : parsed;
       }catch(e){ estado = null; }
     }
+    if(!estado && bytes) estado = estadoDesdePdfBytes(bytes);
+  }
+  if(!estado) estado = cacheLeerEstado(d.nombre);
+
+  // 3) Vista previa dentro de la app (sin descargar).
+  let vistaPrevia = '';
+  if(bytes && mimePorNombre(d.nombre) === 'application/pdf'){
+    try{
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      if(_previewURL) URL.revokeObjectURL(_previewURL);
+      _previewURL = URL.createObjectURL(blob);
+      vistaPrevia = `<iframe src="${_previewURL}" title="Vista previa"></iframe>
+        <p style="font-size:12px;margin:8px 0 0;"><a href="${_previewURL}" target="_blank" rel="noopener" style="color:#C59B27;font-weight:700;">Abrir en otra pestaña</a></p>`;
+    }catch(e){ vistaPrevia = ''; }
   }
 
   if(estado && typeof estado === 'object'){
     reiniciarFormulario(true);
     applyState(estado);
     window.__archivoOneDrive = d.nombre;
+    cacheGuardarEstado(d.nombre, estado);
     desbloquearGuardado();
     saveState();
     setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
-    try{
-      await preloadImages();
-      abrirPreview(d.nombre, `<div class="doc-scale">${buildExportHTML(false)}</div>`);
-    }catch(e){}
+    if(!vistaPrevia){
+      try{
+        await preloadImages();
+        vistaPrevia = `<div class="doc-scale">${buildExportHTML(false)}</div>`;
+      }catch(e){}
+    }
+    if(vistaPrevia) abrirPreview(d.nombre, vistaPrevia);
     return;
   }
 
-  // 3) Archivo binario (PDF/Word): se previsualiza dentro de la app, sin descargarlo.
-  let vistaPrevia = '';
-  if(contenido && mimePorNombre(d.nombre) === 'application/pdf'){
-    try{
-      const blob = new Blob([b64ABytes(contenido)], { type:'application/pdf' });
-      if(_previewURL) URL.revokeObjectURL(_previewURL);
-      _previewURL = URL.createObjectURL(blob);
-      vistaPrevia = `<iframe src="${_previewURL}" style="width:100%;height:62vh;border:0;"></iframe>`;
-    }catch(e){ vistaPrevia = ''; }
-  }
+  // 4) Sin datos originales: solo vista previa, sin deducir campos del nombre.
   if(!vistaPrevia){
-    vistaPrevia = `<p style="font-size:13px;color:#4B5563;margin:0;">No hay vista previa disponible para este archivo. Los datos del nombre se cargaron en el generador.</p>`;
+    vistaPrevia = `<p style="font-size:13px;color:#4B5563;margin:0;">No hay vista previa disponible para este archivo.</p>`;
   }
-
-  reiniciarFormulario(true);
-  if(d.numero) document.getElementById('f_numero').value = d.numero;
-  if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
-  if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
-  const modoSel = document.getElementById('f_quote_mode');
-  if(modoSel && d.modalidad){
-    const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
-    modoSel.value = valor;
-    if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
-  }
-  window.__archivoOneDrive = null;
-  desbloquearGuardado();
-  saveState();
-  setHomeStatus('');
-  mostrarGenerador();
+  setHomeStatus('Este archivo no contiene los datos editables de la cotización; solo se muestra la vista previa.', 'err');
   abrirPreview(d.nombre, vistaPrevia);
-  setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
 }
 
 
