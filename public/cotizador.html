@@ -2028,6 +2028,13 @@ async function buildPdfDoc(){
     }
     aplicarMarcaAgua(pdf);
     aplicarNumerosPagina(pdf);
+    try{
+      pdf.setProperties({
+        title: 'Cotización ' + (document.getElementById('f_numero')?.value || ''),
+        subject: 'MEDULAR',
+        keywords: 'MEDULARSTATE:' + estadoAB64(collectState())
+      });
+    }catch(e){}
 
     return pdf;
   } finally {
@@ -2330,14 +2337,10 @@ async function enviarCliente(){
         guardado = res.ok;
       }catch(e){ guardado = false; }
     }
-    try{
-      await fetch(ONEDRIVE_API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ nombre: nombreArchivo() + '.json', contenido: { estado: collectState() } })
-      });
-      window.__archivoOneDrive = nombreArchivo() + '.json';
-    }catch(e){}
+    if(guardado){
+      window.__archivoOneDrive = nombre;
+      cacheGuardarEstado(nombre, collectState());
+    }
 
     bloquearGuardado();
     setStatus(`Enviado correctamente ✓${guardado ? ' · PDF guardado en OneDrive' : ''}${email ? ' · correo enviado a ' + email : ''}`, 'ok');
@@ -2650,21 +2653,74 @@ async function descargarContenidoOneDrive(id){
 
 /* Guarda / actualiza el estado del generador como JSON en OneDrive. */
 async function guardarEnOneDrive(){
-  const nombre = (window.__archivoOneDrive || (nombreArchivo() + '.json'));
-  setStatus('Guardando en OneDrive...');
+  const nombre = (window.__archivoOneDrive && /\.pdf$/i.test(window.__archivoOneDrive))
+    ? window.__archivoOneDrive
+    : (nombreArchivo() + '.pdf');
+  setStatus('Generando PDF y guardando en OneDrive...');
   try{
+    const pdf = await buildPdfDoc();
+    const b64 = await blobABase64(pdf.output('blob'));
     const res = await fetch(ONEDRIVE_API, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ nombre, contenido: { estado: collectState() } })
+      body: JSON.stringify({ nombre, base64: b64, mime: 'application/pdf' })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
     window.__archivoOneDrive = data.nombre || nombre;
+    cacheGuardarEstado(window.__archivoOneDrive, collectState());
     setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}".`, 'ok');
   }catch(err){
     setStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
+}
+
+/* ---- Estado embebido en el PDF (para re-editar sin archivos .json) ---- */
+function estadoAB64(obj){
+  try{
+    const txt = JSON.stringify(obj);
+    const bytes = new TextEncoder().encode(txt);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }catch(e){ return ''; }
+}
+function estadoDesdeB64(b64){
+  try{
+    const bin = atob(String(b64||''));
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }catch(e){ return null; }
+}
+/* Extrae el estado original guardado dentro de los metadatos del PDF. */
+function estadoDesdePdfBytes(bytes){
+  try{
+    let txt = '';
+    const chunk = 0x8000;
+    for(let i=0;i<bytes.length;i+=chunk){
+      txt += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+    }
+    const m = txt.match(/MEDULARSTATE:([A-Za-z0-9+\/=]+)/);
+    if(!m) return null;
+    return estadoDesdeB64(m[1].replace(/\\/g,''));
+  }catch(e){ return null; }
+}
+/* Copia local de respaldo por nombre de archivo. */
+const CACHE_ESTADOS_KEY = 'medular_estados_cache';
+function cacheGuardarEstado(nombre, estado){
+  if(!nombre || !estado) return;
+  try{
+    const all = JSON.parse(localStorage.getItem(CACHE_ESTADOS_KEY) || '{}');
+    all[nombre] = estado;
+    localStorage.setItem(CACHE_ESTADOS_KEY, JSON.stringify(all));
+  }catch(e){}
+}
+function cacheLeerEstado(nombre){
+  try{
+    const all = JSON.parse(localStorage.getItem(CACHE_ESTADOS_KEY) || '{}');
+    return all[nombre] || null;
+  }catch(e){ return null; }
 }
 
 /* ---- Utilidades Base64 ---- */
