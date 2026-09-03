@@ -192,8 +192,8 @@
   }
   .doc-item:active{ opacity:.85; }
   .doc-item .doc-main{ flex:1; min-width:0; }
-  .doc-item .doc-name{ font-size:13px; font-weight:700; color:var(--text-1); word-break:break-word; }
-  .doc-item .doc-meta{ font-size:11px; color:var(--text-5); margin-top:2px; }
+  .doc-item .doc-name{ font-size:13px; font-weight:700; color:var(--text-1); word-break:break-all; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .doc-item .doc-meta{ font-size:11px; color:var(--text-5); margin-top:2px; word-break:break-word; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .badge{
     flex:0 0 auto; font-size:10px; font-weight:800; padding:4px 8px; border-radius:6px;
     background:var(--gold); color:#fff; letter-spacing:0.4px;
@@ -216,6 +216,15 @@
   .preview-card{ max-width:920px; text-align:left; max-height:88vh; display:flex; flex-direction:column; }
   .preview-body{ overflow:auto; flex:1; border:1px solid #E5E7EB; border-radius:10px; padding:12px; background:#F9FAFB; }
   .preview-body .doc-scale{ transform:scale(.82); transform-origin:top left; width:122%; }
+  .preview-body iframe{ width:100%; height:62vh; border:0; display:block; }
+  @media (max-width:720px){
+    .modal-backdrop{ padding:8px; }
+    .preview-card{ max-height:94vh; padding:16px 12px; border-radius:12px; }
+    .preview-body{ padding:6px; -webkit-overflow-scrolling:touch; }
+    .preview-body .doc-scale{ transform:scale(.42); width:238%; }
+    .preview-body iframe{ height:66vh; min-height:340px; }
+    .modal-actions{ flex-direction:column; }
+  }
 
   /* ---------- PRINT AREA (documento final, oculto en pantalla) ---------- */
   #print-area{ position:absolute; left:-9999px; top:0; width:794px; background:#fff; }
@@ -1560,9 +1569,9 @@ function buildQuoteHTML(){
       </tr>
     </table>
 
-    <table class="avoid-break" style="width:100%;border-collapse:collapse;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+    <table class="avoid-break" style="width:100%;table-layout:fixed;border-collapse:collapse;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
       <tr>
-        <td style="padding:20px 28px;vertical-align:top;width:50%;">
+        <td style="padding:20px 28px;vertical-align:top;width:50%;max-width:50%;word-break:break-word;overflow-wrap:anywhere;">
           <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 8px 0;letter-spacing:0.8px;">CLIENTE</h3>
           ${line('', d.clienteNombre, { style:'font-size:15px;font-weight:700;color:#111827;margin:0 0 4px 0;' })}
           ${line('', d.clienteEmpresa)}
@@ -1570,7 +1579,7 @@ function buildQuoteHTML(){
           ${line('Tel', d.clienteTel)}
           ${line('Email', d.clienteEmail, { style:'font-size:13px;color:#4B5563;margin:0;' })}
         </td>
-        <td style="padding:20px 28px;vertical-align:top;width:50%;text-align:right;">
+        <td style="padding:20px 28px;vertical-align:top;width:50%;max-width:50%;text-align:right;word-break:break-word;overflow-wrap:anywhere;">
           <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 8px 0;letter-spacing:0.8px;">PROYECTO</h3>
           ${line('', d.proyNombre, { style:'font-size:15px;font-weight:700;color:#111827;margin:0 0 4px 0;' })}
           ${line('', d.direccionCompleta)}
@@ -1754,7 +1763,7 @@ function buildQuoteHTMLWord(){
 
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background-color:#F9FAFB;margin-top:14px;">
     <tr>
-      <td width="50%" valign="top" style="padding:16px;">
+      <td width="50%" valign="top" style="padding:16px;word-break:break-word;overflow-wrap:anywhere;">
         <p style="margin:0 0 6px 0;font-size:9pt;color:#9CA3AF;letter-spacing:1px;">CLIENTE</p>
         <p style="margin:0 0 4px 0;font-size:13pt;font-weight:bold;color:#111827;">${esc(d.clienteNombre)}</p>
         ${wline('', d.clienteEmpresa)}
@@ -1762,7 +1771,7 @@ function buildQuoteHTMLWord(){
         ${wline('Tel', d.clienteTel)}
         ${wline('Email', d.clienteEmail)}
       </td>
-      <td width="50%" valign="top" align="right" style="padding:16px;">
+      <td width="50%" valign="top" align="right" style="padding:16px;word-break:break-word;overflow-wrap:anywhere;">
         <p style="margin:0 0 6px 0;font-size:9pt;color:#9CA3AF;letter-spacing:1px;">PROYECTO</p>
         <p style="margin:0 0 4px 0;font-size:13pt;font-weight:bold;color:#111827;">${esc(d.proyNombre)}</p>
         ${wline('', d.direccionCompleta)}
@@ -2019,6 +2028,13 @@ async function buildPdfDoc(){
     }
     aplicarMarcaAgua(pdf);
     aplicarNumerosPagina(pdf);
+    try{
+      pdf.setProperties({
+        title: 'Cotización ' + (document.getElementById('f_numero')?.value || ''),
+        subject: 'MEDULAR',
+        keywords: 'MEDULARSTATE:' + estadoAB64(collectState())
+      });
+    }catch(e){}
 
     return pdf;
   } finally {
@@ -2321,14 +2337,10 @@ async function enviarCliente(){
         guardado = res.ok;
       }catch(e){ guardado = false; }
     }
-    try{
-      await fetch(ONEDRIVE_API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ nombre: nombreArchivo() + '.json', contenido: { estado: collectState() } })
-      });
-      window.__archivoOneDrive = nombreArchivo() + '.json';
-    }catch(e){}
+    if(guardado){
+      window.__archivoOneDrive = nombre;
+      cacheGuardarEstado(nombre, collectState());
+    }
 
     bloquearGuardado();
     setStatus(`Enviado correctamente ✓${guardado ? ' · PDF guardado en OneDrive' : ''}${email ? ' · correo enviado a ' + email : ''}`, 'ok');
@@ -2641,21 +2653,74 @@ async function descargarContenidoOneDrive(id){
 
 /* Guarda / actualiza el estado del generador como JSON en OneDrive. */
 async function guardarEnOneDrive(){
-  const nombre = (window.__archivoOneDrive || (nombreArchivo() + '.json'));
-  setStatus('Guardando en OneDrive...');
+  const nombre = (window.__archivoOneDrive && /\.pdf$/i.test(window.__archivoOneDrive))
+    ? window.__archivoOneDrive
+    : (nombreArchivo() + '.pdf');
+  setStatus('Generando PDF y guardando en OneDrive...');
   try{
+    const pdf = await buildPdfDoc();
+    const b64 = await blobABase64(pdf.output('blob'));
     const res = await fetch(ONEDRIVE_API, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ nombre, contenido: { estado: collectState() } })
+      body: JSON.stringify({ nombre, base64: b64, mime: 'application/pdf' })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
     window.__archivoOneDrive = data.nombre || nombre;
+    cacheGuardarEstado(window.__archivoOneDrive, collectState());
     setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}".`, 'ok');
   }catch(err){
     setStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
+}
+
+/* ---- Estado embebido en el PDF (para re-editar sin archivos .json) ---- */
+function estadoAB64(obj){
+  try{
+    const txt = JSON.stringify(obj);
+    const bytes = new TextEncoder().encode(txt);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }catch(e){ return ''; }
+}
+function estadoDesdeB64(b64){
+  try{
+    const bin = atob(String(b64||''));
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }catch(e){ return null; }
+}
+/* Extrae el estado original guardado dentro de los metadatos del PDF. */
+function estadoDesdePdfBytes(bytes){
+  try{
+    let txt = '';
+    const chunk = 0x8000;
+    for(let i=0;i<bytes.length;i+=chunk){
+      txt += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+    }
+    const m = txt.match(/MEDULARSTATE:([A-Za-z0-9+\/=]+)/);
+    if(!m) return null;
+    return estadoDesdeB64(m[1].replace(/\\/g,''));
+  }catch(e){ return null; }
+}
+/* Copia local de respaldo por nombre de archivo. */
+const CACHE_ESTADOS_KEY = 'medular_estados_cache';
+function cacheGuardarEstado(nombre, estado){
+  if(!nombre || !estado) return;
+  try{
+    const all = JSON.parse(localStorage.getItem(CACHE_ESTADOS_KEY) || '{}');
+    all[nombre] = estado;
+    localStorage.setItem(CACHE_ESTADOS_KEY, JSON.stringify(all));
+  }catch(e){}
+}
+function cacheLeerEstado(nombre){
+  try{
+    const all = JSON.parse(localStorage.getItem(CACHE_ESTADOS_KEY) || '{}');
+    return all[nombre] || null;
+  }catch(e){ return null; }
 }
 
 /* ---- Utilidades Base64 ---- */
@@ -2710,9 +2775,11 @@ async function seleccionarDocumento(idx){
     return;
   }
 
-  // 2) Si el contenido es el estado del generador (JSON), se edita.
+  // 2) Estado original intacto: metadatos del PDF, JSON heredado o caché local.
   let estado = null;
+  let bytes = null;
   if(contenido){
+    try{ bytes = b64ABytes(contenido); }catch(e){ bytes = null; }
     const texto = b64ATexto(contenido).trim();
     if(texto.startsWith('{') || texto.startsWith('[')){
       try{
@@ -2720,55 +2787,48 @@ async function seleccionarDocumento(idx){
         estado = parsed && parsed.estado ? parsed.estado : parsed;
       }catch(e){ estado = null; }
     }
+    if(!estado && bytes) estado = estadoDesdePdfBytes(bytes);
+  }
+  if(!estado) estado = cacheLeerEstado(d.nombre);
+
+  // 3) Vista previa dentro de la app (sin descargar).
+  let vistaPrevia = '';
+  if(bytes && mimePorNombre(d.nombre) === 'application/pdf'){
+    try{
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      if(_previewURL) URL.revokeObjectURL(_previewURL);
+      _previewURL = URL.createObjectURL(blob);
+      vistaPrevia = `<iframe src="${_previewURL}" title="Vista previa"></iframe>
+        <p style="font-size:12px;margin:8px 0 0;"><a href="${_previewURL}" target="_blank" rel="noopener" style="color:#C59B27;font-weight:700;">Abrir en otra pestaña</a></p>`;
+    }catch(e){ vistaPrevia = ''; }
   }
 
   if(estado && typeof estado === 'object'){
     reiniciarFormulario(true);
     applyState(estado);
     window.__archivoOneDrive = d.nombre;
+    cacheGuardarEstado(d.nombre, estado);
     desbloquearGuardado();
     saveState();
     setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
-    try{
-      await preloadImages();
-      abrirPreview(d.nombre, `<div class="doc-scale">${buildExportHTML(false)}</div>`);
-    }catch(e){}
+    if(!vistaPrevia){
+      try{
+        await preloadImages();
+        vistaPrevia = `<div class="doc-scale">${buildExportHTML(false)}</div>`;
+      }catch(e){}
+    }
+    if(vistaPrevia) abrirPreview(d.nombre, vistaPrevia);
     return;
   }
 
-  // 3) Archivo binario (PDF/Word): se previsualiza dentro de la app, sin descargarlo.
-  let vistaPrevia = '';
-  if(contenido && mimePorNombre(d.nombre) === 'application/pdf'){
-    try{
-      const blob = new Blob([b64ABytes(contenido)], { type:'application/pdf' });
-      if(_previewURL) URL.revokeObjectURL(_previewURL);
-      _previewURL = URL.createObjectURL(blob);
-      vistaPrevia = `<iframe src="${_previewURL}" style="width:100%;height:62vh;border:0;"></iframe>`;
-    }catch(e){ vistaPrevia = ''; }
-  }
+  // 4) Sin datos originales: solo vista previa, sin deducir campos del nombre.
   if(!vistaPrevia){
-    vistaPrevia = `<p style="font-size:13px;color:#4B5563;margin:0;">No hay vista previa disponible para este archivo. Los datos del nombre se cargaron en el generador.</p>`;
+    vistaPrevia = `<p style="font-size:13px;color:#4B5563;margin:0;">No hay vista previa disponible para este archivo.</p>`;
   }
-
-  reiniciarFormulario(true);
-  if(d.numero) document.getElementById('f_numero').value = d.numero;
-  if(d.cliente) document.getElementById('f_cliente_nombre').value = d.cliente.replace(/-/g,' ');
-  if(d.empresa) document.getElementById('f_cliente_empresa').value = d.empresa.replace(/-/g,' ');
-  const modoSel = document.getElementById('f_quote_mode');
-  if(modoSel && d.modalidad){
-    const valor = d.modalidad === 'MO' ? 'labor' : (d.modalidad === 'TC' ? 'allcost' : 'both');
-    modoSel.value = valor;
-    if(typeof changeQuoteMode === 'function') changeQuoteMode(valor);
-  }
-  window.__archivoOneDrive = null;
-  desbloquearGuardado();
-  saveState();
-  setHomeStatus('');
-  mostrarGenerador();
+  setHomeStatus('Este archivo no contiene los datos editables de la cotización; solo se muestra la vista previa.', 'err');
   abrirPreview(d.nombre, vistaPrevia);
-  setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
 }
 
 
