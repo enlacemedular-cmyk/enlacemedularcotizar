@@ -3185,7 +3185,7 @@ function buildCobroHTML(){
   const telRaw = (ccGet('cc_cliente_tel') || '').replace(/\D/g,'');
   const tel = telRaw ? (ccGet('cc_cliente_tel_code') + ' ' + telRaw) : '';
   const firmaTel = (ccGet('cc_firma_tel') || '').replace(/\D/g,'');
-  const firmaSrc = (typeof FIRMA_IMG_B64 !== 'undefined' && FIRMA_IMG_B64) ? FIRMA_IMG_B64 : '';
+  const firmaSrc = (typeof IMG_FIRMA_B64 !== 'undefined' && IMG_FIRMA_B64) ? IMG_FIRMA_B64 : (typeof FIRMA_REMOTE !== 'undefined' ? FIRMA_REMOTE : '');
 
   const proyectoLine = ccGet('cc_proyecto')
     ? `<div style="font-size:13px;color:#4B5563;margin-top:2px;">Proyecto: <strong style="color:#111827;">${esc(ccGet('cc_proyecto'))}</strong>${ccGet('cc_ubicacion') ? ' · ' + esc(ccGet('cc_ubicacion')) : ''}</div>` : '';
