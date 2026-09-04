@@ -2516,10 +2516,12 @@ function setHomeStatus(msg, cls){
 }
 
 function mostrarInicio(){
+  document.body.classList.remove('cc-mode');
   document.body.classList.add('home-mode');
   window.scrollTo(0,0);
 }
 function mostrarGenerador(){
+  document.body.classList.remove('cc-mode');
   document.body.classList.remove('home-mode');
   window.scrollTo(0,0);
 }
