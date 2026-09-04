@@ -3026,6 +3026,321 @@ window.addEventListener('DOMContentLoaded', ()=>{
   initCuentaCobro();
 });
 
+/* =========================================================
+   CUENTA DE COBRO
+   ========================================================= */
+const CC_STORAGE_KEY = 'medular_cobro_state';
+const CC_LAST_NUM_KEY = 'medular_last_cc_num';
+
+const CC_IDS = ['cc_numero','cc_fecha','cc_cliente_nombre','cc_cliente_doc_tipo','cc_cliente_doc',
+  'cc_cliente_tel_code','cc_cliente_tel','cc_proyecto','cc_ubicacion','cc_concepto','cc_valor',
+  'cc_valor_letras','cc_banco','cc_tipo_cuenta','cc_cuenta_num','cc_titular','cc_titular_doc',
+  'cc_firma_nombre','cc_firma_cargo','cc_firma_tel','cc_firma_email'];
+
+function ccGet(id){ return (document.getElementById(id) || {value:''}).value; }
+function ccSet(id, v){ const el = document.getElementById(id); if(el) el.value = v; }
+
+function ccSetStatus(msg, cls){
+  const el = document.getElementById('cc-status');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+/* Convierte un número entero a letras en español (pesos). */
+function numeroALetras(n){
+  n = Math.round(Math.abs(n));
+  if(n === 0) return 'CERO';
+  const U = ['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE'];
+  const D = ['','','VEINTI','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+  const C = ['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
+  function centenas(x){
+    if(x === 0) return '';
+    if(x === 100) return 'CIEN';
+    let s = '';
+    const c = Math.floor(x/100), r = x%100;
+    if(c > 0) s += C[c];
+    if(r > 0){
+      if(s) s += ' ';
+      if(r <= 20) s += U[r];
+      else{
+        const d = Math.floor(r/10), u = r%10;
+        if(d === 2) s += u ? 'VEINTI' + U[u].replace('É','E').replace('Í','I') : 'VEINTE';
+        else s += D[d] + (u ? ' Y ' + U[u] : '');
+      }
+    }
+    return s;
+  }
+  function miles(x){
+    if(x < 1000) return centenas(x);
+    const m = Math.floor(x/1000), r = x%1000;
+    let s = (m === 1 ? 'MIL' : miles(m) + ' MIL');
+    if(r > 0) s += ' ' + centenas(r);
+    return s;
+  }
+  const millones = Math.floor(n/1000000), resto = n%1000000;
+  let s = '';
+  if(millones > 0) s += (millones === 1 ? 'UN MILLÓN' : miles(millones) + ' MILLONES');
+  if(resto > 0) s += (s ? ' ' : '') + miles(resto);
+  return s;
+}
+
+function ccActualizarLetras(){
+  const digits = (ccGet('cc_valor') || '').replace(/\D/g,'');
+  const n = parseInt(digits || '0', 10);
+  if(n > 0) ccSet('cc_valor_letras', numeroALetras(n) + ' PESOS M/CTE');
+  else ccSet('cc_valor_letras', '');
+}
+
+function ccCollectState(){
+  const s = {};
+  CC_IDS.forEach(id => { s[id] = ccGet(id); });
+  return s;
+}
+function ccSaveState(){
+  try{ localStorage.setItem(CC_STORAGE_KEY, JSON.stringify(ccCollectState())); }catch(e){}
+}
+function ccLoadState(){
+  try{
+    const raw = localStorage.getItem(CC_STORAGE_KEY);
+    if(!raw) return false;
+    const s = JSON.parse(raw);
+    CC_IDS.forEach(id => { if(s[id] != null) ccSet(id, s[id]); });
+    return true;
+  }catch(e){ return false; }
+}
+
+function siguienteNumeroCobro(){
+  let n = 0;
+  try{ n = parseInt(localStorage.getItem(CC_LAST_NUM_KEY) || '0', 10) || 0; }catch(e){}
+  n = n + 1;
+  try{ localStorage.setItem(CC_LAST_NUM_KEY, String(n)); }catch(e){}
+  return 'CC' + String(n).padStart(4, '0');
+}
+
+function initCuentaCobro(){
+  /* Llenar selects de documento y teléfono. */
+  const selDoc = document.getElementById('cc_cliente_doc_tipo');
+  if(selDoc){
+    DOC_TIPOS.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id; o.textContent = t.id;
+      selDoc.appendChild(o);
+    });
+  }
+  const selTel = document.getElementById('cc_cliente_tel_code');
+  if(selTel){
+    ['+57','+1','+34'].forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      selTel.appendChild(o);
+    });
+  }
+
+  const hadState = ccLoadState();
+  if(!ccGet('cc_fecha')) ccSet('cc_fecha', todayStr(0));
+  if(!ccGet('cc_numero') || !hadState){
+    /* Dejar el consecutivo como está si se restauró; si es nuevo lo asigna nuevaCuentaCobro(). */
+  }
+
+  CC_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', ccSaveState);
+  });
+}
+
+function nuevaCuentaCobro(){
+  CC_IDS.forEach(id => ccSet(id, ''));
+  ccSet('cc_numero', siguienteNumeroCobro());
+  ccSet('cc_fecha', todayStr(0));
+  ccSet('cc_titular', 'Cesar Augusto Medina Valderrama');
+  ccSet('cc_titular_doc', '71.220.645');
+  ccSet('cc_firma_nombre', 'Cesar Augusto Medina Valderrama');
+  ccSet('cc_firma_cargo', 'Asesor Comercial · MEDULAR');
+  ccSaveState();
+  ccSetStatus('');
+  document.body.classList.remove('home-mode');
+  document.body.classList.add('cc-mode');
+  window.scrollTo(0,0);
+}
+
+async function borrarCuentaCobro(){
+  const ok = await confirmarAccion('Se limpiarán todos los datos de la cuenta de cobro y volverás al inicio.');
+  if(!ok) return;
+  CC_IDS.forEach(id => ccSet(id, ''));
+  try{ localStorage.removeItem(CC_STORAGE_KEY); }catch(e){}
+  ccSetStatus('');
+  document.body.classList.remove('cc-mode');
+  mostrarInicio();
+}
+
+/* ================= PDF DE CUENTA DE COBRO ================= */
+function buildCobroHTML(){
+  const headerSrc = IMG_HEADER_B64 || HEADER_REMOTE;
+  const numero = ccGet('cc_numero');
+  const fecha = ccGet('cc_fecha');
+  const valorDigits = (ccGet('cc_valor') || '').replace(/\D/g,'');
+  const valor = parseInt(valorDigits || '0', 10);
+  const letras = ccGet('cc_valor_letras');
+  const telRaw = (ccGet('cc_cliente_tel') || '').replace(/\D/g,'');
+  const tel = telRaw ? (ccGet('cc_cliente_tel_code') + ' ' + telRaw) : '';
+  const firmaTel = (ccGet('cc_firma_tel') || '').replace(/\D/g,'');
+  const firmaSrc = (typeof FIRMA_IMG_B64 !== 'undefined' && FIRMA_IMG_B64) ? FIRMA_IMG_B64 : '';
+
+  const proyectoLine = ccGet('cc_proyecto')
+    ? `<div style="font-size:13px;color:#4B5563;margin-top:2px;">Proyecto: <strong style="color:#111827;">${esc(ccGet('cc_proyecto'))}</strong>${ccGet('cc_ubicacion') ? ' · ' + esc(ccGet('cc_ubicacion')) : ''}</div>` : '';
+
+  const firmaImg = firmaSrc
+    ? `<img src="${firmaSrc}" alt="Firma" style="height:64px;width:auto;display:block;margin-bottom:-6px;"/>`
+    : `<div style="height:64px;"></div>`;
+
+  const telFirmaLine = firmaTel ? `<div style="font-size:11px;color:#6B7280;margin:1px 0 0;">Tel: +57 ${esc(firmaTel)}</div>` : '';
+  const emailFirmaLine = ccGet('cc_firma_email') ? `<div style="font-size:11px;color:#6B7280;margin:1px 0 0;">${esc(ccGet('cc_firma_email'))}</div>` : '';
+
+  return `
+  <div style="max-width:850px;margin:0 auto;font-family:'Inter','Segoe UI',Roboto,Arial,sans-serif;color:#111827;">
+
+    <!-- Cabecera -->
+    <div style="padding:32px 48px 20px;border-bottom:3px solid #C59B27;display:table;width:100%;box-sizing:border-box;">
+      <div style="display:table-cell;vertical-align:middle;width:52%;">
+        <img src="${headerSrc}" alt="MEDULAR" style="width:190px;max-width:100%;height:auto;display:block;object-fit:contain;"/>
+        <p style="font-size:10px;color:#9CA3AF;margin:8px 0 0;letter-spacing:1px;text-transform:uppercase;">Construcción · Diseño · Remodelación</p>
+      </div>
+      <div style="display:table-cell;vertical-align:middle;width:48%;text-align:right;">
+        <span style="font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.5px;display:block;">CUENTA DE COBRO</span>
+        <span style="font-size:14px;font-weight:600;color:#C59B27;display:block;margin-top:4px;">Nº ${esc(numero)}</span>
+        <span style="font-size:12px;color:#6B7280;display:block;margin-top:6px;">Fecha: ${esc(fecha)}</span>
+      </div>
+    </div>
+
+    <!-- Debe a -->
+    <div style="padding:28px 48px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+      <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Debe a</h3>
+      <p style="font-size:16px;font-weight:700;color:#111827;margin:0 0 4px;">${esc(ccGet('cc_cliente_nombre'))}</p>
+      <div style="font-size:13px;color:#4B5563;">${esc(ccGet('cc_cliente_doc_tipo'))} ${esc(ccGet('cc_cliente_doc'))}</div>
+      ${tel ? `<div style="font-size:13px;color:#4B5563;margin-top:2px;">Tel: ${esc(tel)}</div>` : ''}
+      ${proyectoLine}
+    </div>
+
+    <!-- Concepto -->
+    <div style="padding:28px 48px 8px;">
+      <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Concepto</h3>
+      <div style="font-size:14px;color:#1F2937;line-height:1.7;white-space:pre-wrap;border:1px solid #E5E7EB;border-radius:6px;padding:16px;background:#FFFFFF;">${esc(ccGet('cc_concepto'))}</div>
+    </div>
+
+    <!-- Valor a pagar -->
+    <div class="avoid-break" style="padding:28px 48px 8px;">
+      <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Valor a pagar</h3>
+      <div style="border-top:2px solid #C59B27;background:#F9FAFB;padding:16px 20px;border-radius:0 0 6px 6px;">
+        <div style="font-size:26px;font-weight:800;color:#C59B27;">${money(valor)}</div>
+        ${letras ? `<div style="font-size:11px;color:#6B7280;margin-top:6px;text-transform:uppercase;letter-spacing:0.5px;">Son: ${esc(letras)}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Datos de pago + firma -->
+    <div class="avoid-break" style="padding:36px 48px 48px;display:table;width:100%;box-sizing:border-box;">
+      <div style="display:table-cell;width:52%;vertical-align:bottom;">
+        ${firmaImg}
+        <div style="border-top:1px solid #9CA3AF;width:280px;padding-top:8px;">
+          <p style="font-size:13px;font-weight:700;color:#111827;margin:0;">${esc(ccGet('cc_firma_nombre'))}</p>
+          <p style="font-size:11px;color:#6B7280;margin:2px 0 0;">${esc(ccGet('cc_firma_cargo'))}</p>
+          ${telFirmaLine}
+          ${emailFirmaLine}
+        </div>
+      </div>
+      <div style="display:table-cell;width:48%;vertical-align:bottom;">
+        <div style="border-left:3px solid #C59B27;padding-left:12px;">
+          <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#9CA3AF;margin:0 0 6px;">Datos para pago</p>
+          <p style="font-size:12px;color:#4B5563;margin:0;line-height:1.7;">
+            <strong style="color:#111827;">${esc(ccGet('cc_banco'))}</strong> · ${esc(ccGet('cc_tipo_cuenta'))}<br/>
+            Nº ${esc(ccGet('cc_cuenta_num'))}<br/>
+            <span style="color:#6B7280;">Titular: ${esc(ccGet('cc_titular'))}</span><br/>
+            <span style="color:#6B7280;">NIT/CC ${esc(ccGet('cc_titular_doc'))}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>`;
+}
+
+async function buildPdfCobroDoc(){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit:'pt', format:'a4' });
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:2147483000;padding:0 0 20px;';
+  host.innerHTML = buildCobroHTML();
+  document.body.appendChild(host);
+  try{
+    await preloadImages();
+    await waitForImagesIn(host);
+    const canvas = await html2canvas(host, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const pageW = 595.28, pageH = 841.89;
+    const margin = 40;
+    const usableW = pageW - margin*2, usableH = pageH - margin*2;
+    const ratio = usableW / canvas.width;
+    const sliceH = usableH / ratio;
+    let y = 0, page = 0;
+    while(y < canvas.height - 1){
+      const sh = Math.min(sliceH, canvas.height - y);
+      const c = document.createElement('canvas');
+      c.width = canvas.width; c.height = Math.ceil(sh);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, sh, 0, 0, canvas.width, sh);
+      if(page > 0) pdf.addPage();
+      pdf.addImage(c.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, usableW, sh*ratio);
+      y += sh;
+      page++;
+    }
+    return pdf;
+  }finally{
+    host.remove();
+  }
+}
+
+function nombreArchivoCobro(){
+  const numero = (ccGet('cc_numero') || 'CC0001').replace(/[^\w-]/g,'');
+  const cliente = limpiaNombre(ccGet('cc_cliente_nombre')) || 'Cliente';
+  return `${numero}_CuentaCobro_${cliente}`;
+}
+
+async function downloadPDFCobro(){
+  if(!ccGet('cc_cliente_nombre').trim()){ ccSetStatus('Indica el nombre del cliente.', 'err'); return; }
+  if(!ccGet('cc_concepto').trim()){ ccSetStatus('Escribe el concepto del cobro.', 'err'); return; }
+  if(!(ccGet('cc_valor')||'').replace(/\D/g,'')){ ccSetStatus('Indica el valor a pagar.', 'err'); return; }
+  ccSetStatus('Generando PDF...');
+  try{
+    const pdf = await buildPdfCobroDoc();
+    pdf.save(nombreArchivoCobro() + '.pdf');
+    ccSetStatus('PDF descargado.', 'ok');
+  }catch(err){
+    ccSetStatus('No se pudo generar el PDF: ' + (err && err.message ? err.message : 'error'), 'err');
+  }
+}
+
+async function guardarCobroEnOneDrive(){
+  if(!ccGet('cc_cliente_nombre').trim()){ ccSetStatus('Indica el nombre del cliente antes de guardar.', 'err'); return; }
+  ccSetStatus('Generando PDF y guardando en OneDrive...');
+  try{
+    const pdf = await buildPdfCobroDoc();
+    const b64 = await blobABase64(pdf.output('blob'));
+    const nombre = nombreArchivoCobro() + '.pdf';
+    const res = await fetch(ONEDRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ nombre, base64: b64, mime: 'application/pdf' })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
+    ccSetStatus(`Guardado en OneDrive como "${data.nombre || nombre}".`, 'ok');
+  }catch(err){
+    ccSetStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
+  }
+}
+
+
 </script>
 
 </body>
