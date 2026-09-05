@@ -254,7 +254,47 @@
     .app-header, .download-bar, .form-wrap{ display:none !important; }
     .avoid-break{ break-inside:avoid; page-break-inside:avoid; }
   }
+
+  /* ---------- ESPACIADO Y LEGIBILIDAD ---------- */
+  details.card{ margin-bottom:22px; }
+  details.card summary{ padding:16px 18px; }
+  .card-body{ padding:20px 18px 22px 18px; }
+  .field{ margin-bottom:16px; }
+  .item-row, .cond-block{ padding:16px; margin-bottom:14px; }
+  .form-wrap{ padding:22px 14px 20px 14px; }
+
+  /* ---------- LAYOUT RESPONSIVE ---------- */
+  @media (min-width:900px){
+    .form-wrap{
+      max-width:1120px;
+      display:grid; grid-template-columns:1fr 1fr; gap:32px;
+      align-items:start;
+      padding:36px 28px 28px 28px;
+    }
+    .form-wrap > details.card{ margin-bottom:0; }
+    .form-wrap > details.card.wide{ grid-column:1 / -1; }
+    .card-body{ padding:24px 22px 26px 22px; }
+  }
+
+  /* ---------- ASISTENTE DE IA (no invasivo) ---------- */
+  .ai-tip{
+    position:absolute; z-index:9999; max-width:min(420px, 92vw);
+    background:rgba(17,24,39,.95); color:#F9FAFB; border:1px solid rgba(197,155,39,.4);
+    border-left:3px solid var(--gold);
+    border-radius:8px; padding:9px 11px; font-size:12px; line-height:1.45;
+    box-shadow:0 8px 24px rgba(0,0,0,.22);
+    opacity:0; transform:translateY(-4px); transition:opacity .12s ease, transform .12s ease;
+  }
+  .ai-tip.show{ opacity:1; transform:translateY(0); }
+  .ai-tip .ai-lab{ display:block; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--gold); font-weight:800; margin-bottom:3px; }
+  .ai-tip .ai-txt{ display:block; color:#E5E7EB; }
+  .ai-tip .ai-act{ margin-top:7px; font-size:10.5px; color:#9CA3AF; }
+  .ai-tip .ai-apply{
+    background:var(--gold); border:none; color:#111827; font-weight:800; font-size:10.5px;
+    padding:4px 8px; border-radius:5px; cursor:pointer; margin-right:6px;
+  }
 </style>
+
 </head>
 <body class="home-mode">
 
@@ -409,7 +449,7 @@
       </div>
     </details>
 
-    <details class="card" open>
+    <details class="card wide" open>
       <summary>Ítems de la cotización</summary>
       <div class="card-body">
         <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('items')" style="display:none;margin:0 0 10px;">Copiar ítems de la otra modalidad</button>
@@ -419,7 +459,7 @@
       </div>
     </details>
 
-    <details class="card" open>
+    <details class="card wide" open>
       <summary>Materiales</summary>
       <div class="card-body">
         <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('materiales')" style="display:none;margin:0 0 10px;">Copiar materiales de la otra modalidad</button>
@@ -440,7 +480,7 @@
       </div>
     </details>
 
-    <details class="card" open>
+    <details class="card wide" open>
       <summary>Condiciones de pago</summary>
       <div class="card-body">
         <button type="button" class="add-btn copy-stage" onclick="copyStageFromOther('condiciones')" style="display:none;margin:0 0 10px;">Copiar condiciones de la otra modalidad</button>
@@ -2254,7 +2294,8 @@ async function downloadWord(){
       <span style="background:#C59B27;mso-highlight:#C59B27;color:#000000;font-weight:bold;">&nbsp;&nbsp;<span style="mso-field-code:PAGE"></span>&nbsp;&nbsp;</span>
     </p>
   </div>
-  </div></body></html>`;
+  </div>
+</body></html>`;
 
   const { html: htmlConRefs, parts } = extraerImagenesWord(fullHtml);
   const boundary = '----=_NextPart_MEDULAR_01';
@@ -2386,7 +2427,8 @@ function buildEmailHTML(){
         </td></tr>
       </table>
     </td></tr>
-  </table></body></html>`;
+  </table>
+</body></html>`;
 }
 
 function blobABase64(blob){
@@ -3348,6 +3390,102 @@ async function guardarCobroEnOneDrive(){
 }
 
 
+</script>
+
+
+<script>
+/* ================= ASISTENTE DE IA (autocorrección + sugerencia de redacción) ================= */
+(function(){
+  const SEL = 'textarea, input[type="text"]:not(.digits-only):not(.nit-format):not([type="date"]), input:not([type]):not(.digits-only):not(.nit-format)';
+  const EXCLUDE = /^(f_numero|f_cliente_email|cc_numero)$/;
+  let tip=null, target=null, sugerencia='', timer=null, ctrl=null, lastAsked='';
+
+  function crearTip(){
+    if(tip) return tip;
+    tip=document.createElement('div');
+    tip.className='ai-tip';
+    tip.innerHTML='<span class="ai-lab">Sugerencia de redacción</span><span class="ai-txt"></span>'+
+      '<div class="ai-act"><button type="button" class="ai-apply">Aplicar</button>Tab para aplicar · Esc para descartar</div>';
+    tip.querySelector('.ai-apply').addEventListener('mousedown', function(e){ e.preventDefault(); aplicar(); });
+    document.body.appendChild(tip);
+    return tip;
+  }
+  function ocultar(){
+    if(tip) tip.classList.remove('show');
+    sugerencia=''; 
+  }
+  function aplicar(){
+    if(!target || !sugerencia) return;
+    target.value = sugerencia;
+    target.dispatchEvent(new Event('input', {bubbles:true}));
+    target.dispatchEvent(new Event('change', {bubbles:true}));
+    ocultar();
+  }
+  function mostrar(el, texto){
+    const t=crearTip();
+    t.querySelector('.ai-txt').textContent = texto;
+    const r = el.getBoundingClientRect();
+    t.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - t.offsetWidth - 12)) + 'px';
+    t.style.top  = (window.scrollY + r.bottom + 6) + 'px';
+    t.classList.add('show');
+    sugerencia = texto; target = el;
+  }
+  async function pedirSugerencia(el){
+    const texto = (el.value||'').trim();
+    if(texto.length < 8 || texto === lastAsked) return;
+    lastAsked = texto;
+    if(ctrl) ctrl.abort();
+    ctrl = new AbortController();
+    try{
+      const label = (el.closest('.field')?.querySelector('label')?.textContent || el.placeholder || 'texto').trim();
+      const res = await fetch('/api/public/redaccion', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ texto, contexto: label }), signal: ctrl.signal
+      });
+      if(!res.ok) return;
+      const data = await res.json();
+      const sug = (data && data.sugerencia || '').trim();
+      if(sug && sug !== texto && document.activeElement === el) mostrar(el, sug);
+    }catch(e){}
+  }
+  function elegible(el){
+    if(!el || !el.matches) return false;
+    if(el.tagName!=='TEXTAREA' && el.tagName!=='INPUT') return false;
+    if(el.tagName==='INPUT'){
+      const t=(el.getAttribute('type')||'text').toLowerCase();
+      if(t!=='text' && t!=='search') return false;
+      if(el.classList.contains('digits-only')||el.classList.contains('nit-format')) return false;
+    }
+    if(el.id && EXCLUDE.test(el.id)) return false;
+    if(el.closest('#home-screen')) return false;
+    return true;
+  }
+
+  document.addEventListener('input', function(e){
+    const el=e.target;
+    if(!elegible(el)) return;
+    ocultar();
+    clearTimeout(timer);
+    timer=setTimeout(()=>pedirSugerencia(el), 1100);
+  }, true);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){ clearTimeout(timer); ocultar(); }
+    else if(e.key==='Tab' && sugerencia && target && document.activeElement===target){
+      e.preventDefault(); aplicar();
+    }
+  }, true);
+
+  document.addEventListener('focusout', function(e){
+    if(e.target===target){ setTimeout(ocultar, 120); clearTimeout(timer); }
+  }, true);
+
+  window.addEventListener('scroll', ocultar, true);
+  window.addEventListener('resize', ocultar);
+  document.addEventListener('mousedown', function(e){
+    if(tip && !tip.contains(e.target) && e.target!==target) ocultar();
+  }, true);
+})();
 </script>
 
 </body>
