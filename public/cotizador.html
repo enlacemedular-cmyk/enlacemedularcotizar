@@ -3396,9 +3396,13 @@ async function guardarCobroEnOneDrive(){
 <script>
 /* ================= ASISTENTE DE IA (autocorrección + sugerencia de redacción) ================= */
 (function(){
-  const SEL = 'textarea, input[type="text"]:not(.digits-only):not(.nit-format):not([type="date"]), input:not([type]):not(.digits-only):not(.nit-format)';
   const EXCLUDE = /^(f_numero|f_cliente_email|cc_numero)$/;
-  let tip=null, target=null, sugerencia='', timer=null, ctrl=null, lastAsked='';
+  let tip=null, target=null, sugerencia='', timer=null, ctrl=null;
+  /* Estado por campo:
+     pendiente  -> { base, sug } sugerencia no aceptada ni descartada (reaparece al enfocar)
+     aplicado   -> texto ya corregido/aceptado (no vuelve a sugerir hasta que cambie)
+     descartado -> texto cuya sugerencia fue rechazada con Esc */
+  const pendiente = new WeakMap(), aplicado = new WeakMap(), descartado = new WeakMap();
 
   function crearTip(){
     if(tip) return tip;
@@ -3410,18 +3414,25 @@ async function guardarCobroEnOneDrive(){
     document.body.appendChild(tip);
     return tip;
   }
-  function ocultar(){
+  function ocultar(descartar){
     if(tip) tip.classList.remove('show');
-    sugerencia=''; 
+    if(descartar && target && sugerencia){
+      descartado.set(target, (target.value||'').trim());
+      pendiente.delete(target);
+    }
+    sugerencia='';
   }
   function aplicar(){
     if(!target || !sugerencia) return;
-    target.value = sugerencia;
-    target.dispatchEvent(new Event('input', {bubbles:true}));
-    target.dispatchEvent(new Event('change', {bubbles:true}));
+    const el=target, texto=sugerencia;
+    pendiente.delete(el);
+    aplicado.set(el, texto.trim());
+    el.value = texto;
+    el.dispatchEvent(new Event('input', {bubbles:true}));
+    el.dispatchEvent(new Event('change', {bubbles:true}));
     ocultar();
   }
-  function mostrar(el, texto){
+  function mostrar(el, texto, base){
     const t=crearTip();
     t.querySelector('.ai-txt').textContent = texto;
     const r = el.getBoundingClientRect();
@@ -3429,11 +3440,15 @@ async function guardarCobroEnOneDrive(){
     t.style.top  = (window.scrollY + r.bottom + 6) + 'px';
     t.classList.add('show');
     sugerencia = texto; target = el;
+    pendiente.set(el, { base: base !== undefined ? base : (el.value||'').trim(), sug: texto });
   }
   async function pedirSugerencia(el){
     const texto = (el.value||'').trim();
-    if(texto.length < 8 || texto === lastAsked) return;
-    lastAsked = texto;
+    if(texto.length < 8) return;
+    if(aplicado.get(el) === texto) return;     /* ya coincide con la versión corregida */
+    if(descartado.get(el) === texto) return;   /* sugerencia descartada para este texto */
+    const p = pendiente.get(el);
+    if(p && p.base === texto){ mostrar(el, p.sug, p.base); return; }
     if(ctrl) ctrl.abort();
     ctrl = new AbortController();
     try{
@@ -3445,7 +3460,7 @@ async function guardarCobroEnOneDrive(){
       if(!res.ok) return;
       const data = await res.json();
       const sug = (data && data.sugerencia || '').trim();
-      if(sug && sug !== texto && document.activeElement === el) mostrar(el, sug);
+      if(sug && sug !== texto && document.activeElement === el) mostrar(el, sug, texto);
     }catch(e){}
   }
   function elegible(el){
@@ -3464,26 +3479,41 @@ async function guardarCobroEnOneDrive(){
   document.addEventListener('input', function(e){
     const el=e.target;
     if(!elegible(el)) return;
-    ocultar();
+    /* El usuario modificó el texto: limpiar estado y pedir nueva sugerencia tras debounce */
+    if(!(aplicado.get(el) && aplicado.get(el) === (el.value||'').trim())){
+      pendiente.delete(el); aplicado.delete(el); descartado.delete(el);
+    }
+    if(tip) tip.classList.remove('show');
+    sugerencia='';
     clearTimeout(timer);
     timer=setTimeout(()=>pedirSugerencia(el), 1100);
   }, true);
 
+  document.addEventListener('focusin', function(e){
+    const el=e.target;
+    if(!elegible(el)) return;
+    const texto=(el.value||'').trim();
+    if(aplicado.get(el) === texto) return;        /* aceptado: no reaparece */
+    if(descartado.get(el) === texto) return;      /* rechazado: no reaparece */
+    const p=pendiente.get(el);
+    if(p && p.base === texto) mostrar(el, p.sug, p.base);   /* sugerencia previa pendiente */
+  }, true);
+
   document.addEventListener('keydown', function(e){
-    if(e.key==='Escape'){ clearTimeout(timer); ocultar(); }
+    if(e.key==='Escape'){ clearTimeout(timer); ocultar(true); }
     else if(e.key==='Tab' && sugerencia && target && document.activeElement===target){
       e.preventDefault(); aplicar();
     }
   }, true);
 
   document.addEventListener('focusout', function(e){
-    if(e.target===target){ setTimeout(ocultar, 120); clearTimeout(timer); }
+    if(e.target===target){ setTimeout(function(){ ocultar(false); }, 120); clearTimeout(timer); }
   }, true);
 
-  window.addEventListener('scroll', ocultar, true);
-  window.addEventListener('resize', ocultar);
+  window.addEventListener('scroll', function(){ ocultar(false); }, true);
+  window.addEventListener('resize', function(){ ocultar(false); });
   document.addEventListener('mousedown', function(e){
-    if(tip && !tip.contains(e.target) && e.target!==target) ocultar();
+    if(tip && !tip.contains(e.target) && e.target!==target) ocultar(false);
   }, true);
 })();
 </script>
