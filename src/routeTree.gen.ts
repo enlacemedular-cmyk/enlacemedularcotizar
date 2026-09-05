@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicRedaccionRouteImport } from './routes/api/public/redaccion'
 import { Route as ApiPublicOnedriveRouteImport } from './routes/api/public/onedrive'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRedaccionRoute = ApiPublicRedaccionRouteImport.update({
+  id: '/api/public/redaccion',
+  path: '/api/public/redaccion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicOnedriveRoute = ApiPublicOnedriveRouteImport.update({
   id: '/api/public/onedrive',
   path: '/api/public/onedrive',
@@ -33,30 +39,43 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/public/onedrive': typeof ApiPublicOnedriveRoute
+  '/api/public/redaccion': typeof ApiPublicRedaccionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/public/onedrive': typeof ApiPublicOnedriveRoute
+  '/api/public/redaccion': typeof ApiPublicRedaccionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/public/onedrive': typeof ApiPublicOnedriveRoute
+  '/api/public/redaccion': typeof ApiPublicRedaccionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sitemap.xml' | '/api/public/onedrive'
+  fullPaths:
+    | '/'
+    | '/sitemap.xml'
+    | '/api/public/onedrive'
+    | '/api/public/redaccion'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sitemap.xml' | '/api/public/onedrive'
-  id: '__root__' | '/' | '/sitemap.xml' | '/api/public/onedrive'
+  to: '/' | '/sitemap.xml' | '/api/public/onedrive' | '/api/public/redaccion'
+  id:
+    | '__root__'
+    | '/'
+    | '/sitemap.xml'
+    | '/api/public/onedrive'
+    | '/api/public/redaccion'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPublicOnedriveRoute: typeof ApiPublicOnedriveRoute
+  ApiPublicRedaccionRoute: typeof ApiPublicRedaccionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +94,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/redaccion': {
+      id: '/api/public/redaccion'
+      path: '/api/public/redaccion'
+      fullPath: '/api/public/redaccion'
+      preLoaderRoute: typeof ApiPublicRedaccionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/onedrive': {
       id: '/api/public/onedrive'
       path: '/api/public/onedrive'
@@ -89,6 +115,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPublicOnedriveRoute: ApiPublicOnedriveRoute,
+  ApiPublicRedaccionRoute: ApiPublicRedaccionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
