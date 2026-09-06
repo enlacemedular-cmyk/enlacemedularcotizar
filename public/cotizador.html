@@ -649,6 +649,7 @@
         <button class="btn btn-dark" style="background:#1F2937;" onclick="guardarCobroEnOneDrive()">☁ Guardar en OneDrive</button>
       </div>
       <div class="btn-row">
+        <button class="btn btn-dark" onclick="duplicarDocumento()">⧉ Duplicar</button>
         <button class="btn btn-dark" onclick="volverInicio()">🏠 Inicio</button>
         <button class="btn btn-dark" style="background:#B91C1C;" onclick="borrarCuentaCobro()">🗑 Borrar cuenta de cobro</button>
       </div>
@@ -659,11 +660,13 @@
   <div class="download-bar" id="quote-bar">
     <div class="btn-row">
       <button class="btn btn-dark" id="btn-guardar-od" style="background:#1F2937;" onclick="guardarEnOneDrive()">☁ Guardar en OneDrive</button>
+      <button class="btn btn-dark" onclick="duplicarDocumento()">⧉ Duplicar</button>
       <button class="btn btn-dark" onclick="volverInicio()">🏠 Inicio</button>
       <button class="btn btn-dark" style="background:#B91C1C;" onclick="borrarCotizacion()">🗑 Borrar cotización</button>
     </div>
     <div class="status" id="status-msg"></div>
   </div>
+
 
   <div class="modal-backdrop" id="confirm-modal">
     <div class="modal-card">
@@ -682,8 +685,10 @@
       <div class="preview-body" id="preview-body"></div>
       <div class="modal-actions" style="margin-top:14px;">
         <button class="cancel" onclick="cerrarPreview()">← Retroceder</button>
+        <button class="cancel" id="btn-duplicar-preview" onclick="duplicarDocumento(true)">⧉ Duplicar</button>
         <button class="ok" onclick="cerrarPreview()">Cerrar</button>
       </div>
+
     </div>
   </div>
 
@@ -3258,60 +3263,60 @@ function buildCobroHTML(){
   const emailFirmaLine = ccGet('cc_firma_email') ? `<div style="font-size:11px;color:#6B7280;margin:1px 0 0;">${esc(ccGet('cc_firma_email'))}</div>` : '';
 
   return `
-  <div class="cc-doc" style="max-width:850px;margin:0 auto;font-family:'Inter','Segoe UI',Roboto,Arial,sans-serif;color:#111827;overflow-wrap:anywhere;word-break:break-word;">
+  <div class="cc-doc" style="max-width:850px;margin:0 auto;font-family:'Inter','Segoe UI',Roboto,Arial,sans-serif;color:#111827;display:flex;flex-direction:column;height:auto;overflow-wrap:anywhere;word-break:break-word;">
 
     <!-- Cabecera -->
-    <div style="padding:32px 48px 20px;border-bottom:3px solid #C59B27;display:table;width:100%;box-sizing:border-box;">
-      <div style="display:table-cell;vertical-align:middle;width:52%;">
+    <div style="flex:0 0 auto;padding:32px 48px 20px;border-bottom:3px solid #C59B27;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;box-sizing:border-box;height:auto;">
+      <div style="flex:1 1 240px;min-width:0;max-width:100%;">
         <img src="${headerSrc}" alt="MEDULAR" style="width:190px;max-width:100%;height:auto;display:block;object-fit:contain;"/>
-        <p style="font-size:10px;color:#9CA3AF;margin:8px 0 0;letter-spacing:1px;text-transform:uppercase;">Construcción · Diseño · Remodelación</p>
+        <p style="font-size:10px;color:#9CA3AF;margin:8px 0 0;letter-spacing:1px;text-transform:uppercase;white-space:normal;">Construcción · Diseño · Remodelación</p>
       </div>
-      <div style="display:table-cell;vertical-align:middle;width:48%;text-align:right;">
-        <span style="font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.5px;display:block;">CUENTA DE COBRO</span>
-        <span style="font-size:14px;font-weight:600;color:#C59B27;display:block;margin-top:4px;">Nº ${esc(numero)}</span>
-        <span style="font-size:12px;color:#6B7280;display:block;margin-top:6px;">Fecha: ${esc(fecha)}</span>
+      <div style="flex:0 1 auto;min-width:0;max-width:100%;text-align:right;">
+        <span style="font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.5px;display:block;white-space:normal;">CUENTA DE COBRO</span>
+        <span style="font-size:14px;font-weight:600;color:#C59B27;display:block;margin-top:4px;white-space:normal;">Nº ${esc(numero)}</span>
+        <span style="font-size:12px;color:#6B7280;display:block;margin-top:6px;white-space:normal;">Fecha: ${esc(fecha)}</span>
       </div>
     </div>
 
     <!-- Debe a -->
-    <div style="padding:28px 48px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+    <div style="flex:0 0 auto;height:auto;padding:28px 48px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;box-sizing:border-box;min-width:0;max-width:100%;">
       <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Debe a</h3>
-      <p style="font-size:16px;font-weight:700;color:#111827;margin:0 0 4px;">${esc(ccGet('cc_cliente_nombre'))}</p>
-      <div style="font-size:13px;color:#4B5563;">${esc(ccGet('cc_cliente_doc_tipo'))} ${esc(ccGet('cc_cliente_doc'))}</div>
-      ${tel ? `<div style="font-size:13px;color:#4B5563;margin-top:2px;">Tel: ${esc(tel)}</div>` : ''}
+      <p style="font-size:16px;font-weight:700;color:#111827;margin:0 0 4px;white-space:normal;max-width:100%;">${esc(ccGet('cc_cliente_nombre'))}</p>
+      <div style="font-size:13px;color:#4B5563;white-space:normal;max-width:100%;">${esc(ccGet('cc_cliente_doc_tipo'))} ${esc(ccGet('cc_cliente_doc'))}</div>
+      ${tel ? `<div style="font-size:13px;color:#4B5563;margin-top:2px;white-space:normal;max-width:100%;">Tel: ${esc(tel)}</div>` : ''}
       ${proyectoLine}
     </div>
 
     <!-- Concepto -->
-    <div style="padding:28px 48px 8px;">
+    <div style="flex:0 0 auto;height:auto;padding:28px 48px 8px;box-sizing:border-box;min-width:0;max-width:100%;">
       <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Concepto</h3>
-      <div style="font-size:14px;color:#1F2937;line-height:1.7;white-space:pre-wrap;border:1px solid #E5E7EB;border-radius:6px;padding:16px;background:#FFFFFF;">${esc(ccGet('cc_concepto'))}</div>
+      <div style="font-size:14px;color:#1F2937;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;border:1px solid #E5E7EB;border-radius:6px;padding:16px;background:#FFFFFF;height:auto;max-width:100%;box-sizing:border-box;">${esc(ccGet('cc_concepto'))}</div>
     </div>
 
     <!-- Valor a pagar -->
-    <div class="avoid-break" style="padding:28px 48px 8px;">
+    <div class="avoid-break" style="flex:0 0 auto;height:auto;padding:28px 48px 8px;box-sizing:border-box;min-width:0;max-width:100%;">
       <h3 style="font-size:11px;text-transform:uppercase;color:#9CA3AF;margin:0 0 10px;letter-spacing:0.8px;">Valor a pagar</h3>
-      <div style="border-top:2px solid #C59B27;background:#F9FAFB;padding:16px 20px;border-radius:0 0 6px 6px;">
-        <div style="font-size:26px;font-weight:800;color:#C59B27;">${money(valor)}</div>
-        ${letras ? `<div style="font-size:11px;color:#6B7280;margin-top:6px;text-transform:uppercase;letter-spacing:0.5px;">Son: ${esc(letras)}</div>` : ''}
+      <div style="border-top:2px solid #C59B27;background:#F9FAFB;padding:16px 20px;border-radius:0 0 6px 6px;height:auto;max-width:100%;box-sizing:border-box;">
+        <div style="font-size:26px;font-weight:800;color:#C59B27;white-space:normal;overflow-wrap:anywhere;">${money(valor)}</div>
+        ${letras ? `<div style="font-size:11px;color:#6B7280;margin-top:6px;text-transform:uppercase;letter-spacing:0.5px;white-space:normal;">Son: ${esc(letras)}</div>` : ''}
       </div>
     </div>
 
     <!-- Datos de pago + firma -->
-    <div class="avoid-break" style="padding:36px 48px 48px;display:table;width:100%;box-sizing:border-box;">
-      <div style="display:table-cell;width:52%;vertical-align:bottom;">
+    <div class="avoid-break" style="flex:0 0 auto;height:auto;padding:36px 48px 48px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end;box-sizing:border-box;max-width:100%;">
+      <div style="flex:1 1 280px;min-width:0;max-width:100%;">
         ${firmaImg}
-        <div style="border-top:1px solid #9CA3AF;width:280px;padding-top:8px;">
-          <p style="font-size:13px;font-weight:700;color:#111827;margin:0;">${esc(ccGet('cc_firma_nombre'))}</p>
-          <p style="font-size:11px;color:#6B7280;margin:2px 0 0;">${esc(ccGet('cc_firma_cargo'))}</p>
+        <div style="border-top:1px solid #9CA3AF;width:100%;max-width:300px;padding-top:8px;min-width:0;">
+          <p style="font-size:13px;font-weight:700;color:#111827;margin:0;white-space:normal;">${esc(ccGet('cc_firma_nombre'))}</p>
+          <p style="font-size:11px;color:#6B7280;margin:2px 0 0;white-space:normal;">${esc(ccGet('cc_firma_cargo'))}</p>
           ${telFirmaLine}
           ${emailFirmaLine}
         </div>
       </div>
-      <div style="display:table-cell;width:48%;vertical-align:bottom;">
-        <div style="border-left:3px solid #C59B27;padding-left:12px;">
+      <div style="flex:1 1 240px;min-width:0;max-width:100%;">
+        <div style="border-left:3px solid #C59B27;padding-left:12px;min-width:0;max-width:100%;">
           <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#9CA3AF;margin:0 0 6px;">Datos para pago</p>
-          <p style="font-size:12px;color:#4B5563;margin:0;line-height:1.7;">
+          <p style="font-size:12px;color:#4B5563;margin:0;line-height:1.7;white-space:normal;overflow-wrap:anywhere;max-width:100%;">
             <strong style="color:#111827;">${esc(ccGet('cc_banco'))}</strong> · ${esc(ccGet('cc_tipo_cuenta'))}<br/>
             Nº ${esc(ccGet('cc_cuenta_num'))}<br/>
             <span style="color:#6B7280;">Titular: ${esc(ccGet('cc_titular'))}</span><br/>
@@ -3323,6 +3328,7 @@ function buildCobroHTML(){
 
   </div>`;
 }
+
 
 async function buildPdfCobroDoc(){
   const { jsPDF } = window.jspdf;
