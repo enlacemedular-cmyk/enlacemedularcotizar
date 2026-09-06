@@ -277,6 +277,17 @@
   }
 
   /* ---------- ASISTENTE DE IA (no invasivo) ---------- */
+  /* ---------- CONTENCIÓN DE TEXTO · CUENTA DE COBRO ---------- */
+  .cc-doc, .cc-doc *{
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    white-space:normal;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+  .cc-doc img{ max-width:100%; height:auto; }
+  .cc-doc [style*="display:table-cell"]{ word-break:break-word; }
+
   .ai-tip{
     position:absolute; z-index:9999; max-width:min(420px, 92vw);
     background:rgba(17,24,39,.95); color:#F9FAFB; border:1px solid rgba(197,155,39,.4);
