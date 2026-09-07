@@ -3535,5 +3535,206 @@ async function guardarCobroEnOneDrive(){
 })();
 </script>
 
+<script>
+/* =========================================================
+   CLIENTES FRECUENTES · DUPLICAR · AUTOGUARDADO
+   ========================================================= */
+(function(){
+  const CLIENTES_KEY = 'medular_clientes';
+
+  function leerClientes(){
+    try{ const a = JSON.parse(localStorage.getItem(CLIENTES_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+    catch(e){ return []; }
+  }
+  function escribirClientes(list){
+    try{ localStorage.setItem(CLIENTES_KEY, JSON.stringify(list.slice(0,300))); }catch(e){}
+  }
+  const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  const val = id => (document.getElementById(id)||{value:''}).value || '';
+  function setIf(id, v){
+    const el = document.getElementById(id);
+    if(el && v != null && String(v).length) el.value = v;
+  }
+
+  /* ---- Registro de clientes desde ambos formularios ---- */
+  function registroCotizacion(){
+    const nombre = val('f_cliente_nombre').trim();
+    if(nombre.length < 3) return null;
+    return {
+      nombre,
+      empresa: val('f_cliente_empresa'),
+      docTipo: val('f_cliente_doc_tipo'),
+      doc: val('f_cliente_nit'),
+      telCode: val('f_cliente_tel_code'),
+      tel: val('f_cliente_tel_num'),
+      email: val('f_cliente_email'),
+      proyecto: val('f_proy_nombre'),
+      direccion: val('f_proy_direccion')
+    };
+  }
+  function registroCobro(){
+    const nombre = val('cc_cliente_nombre').trim();
+    if(nombre.length < 3) return null;
+    return {
+      nombre,
+      docTipo: val('cc_cliente_doc_tipo'),
+      doc: val('cc_cliente_doc'),
+      telCode: val('cc_cliente_tel_code'),
+      tel: val('cc_cliente_tel'),
+      proyecto: val('cc_proyecto'),
+      direccion: val('cc_ubicacion')
+    };
+  }
+  function recordarCliente(reg){
+    if(!reg || !reg.nombre) return;
+    const list = leerClientes();
+    const k = norm(reg.nombre);
+    const i = list.findIndex(c => norm(c.nombre) === k);
+    const merged = i >= 0 ? Object.assign({}, list[i]) : {};
+    Object.keys(reg).forEach(f => { if(String(reg[f]||'').trim()) merged[f] = reg[f]; });
+    merged.nombre = reg.nombre;
+    merged.ts = Date.now();
+    if(i >= 0) list.splice(i,1);
+    list.unshift(merged);
+    escribirClientes(list);
+  }
+  window.recordarClienteActual = function(){
+    recordarCliente(document.body.classList.contains('cc-mode') ? registroCobro() : registroCotizacion());
+  };
+
+  /* ---- Dropdown de sugerencias ---- */
+  let box = null, boxInput = null;
+  function cerrarBox(){ if(box){ box.remove(); box = null; boxInput = null; } }
+  function crearBox(input){
+    cerrarBox();
+    box = document.createElement('div');
+    box.className = 'cliente-sug';
+    box.style.cssText = 'position:absolute;z-index:9998;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 10px 26px rgba(17,24,39,.14);font-size:13px;max-height:220px;overflow-y:auto;';
+    document.body.appendChild(box);
+    boxInput = input;
+    const r = input.getBoundingClientRect();
+    box.style.left = (r.left + window.scrollX) + 'px';
+    box.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    box.style.width = Math.max(220, r.width) + 'px';
+    return box;
+  }
+  function coincidencias(q){
+    const n = norm(q);
+    if(n.length < 2) return [];
+    return leerClientes().filter(c =>
+      norm(c.nombre).includes(n) || norm(c.doc).includes(n) || norm(c.empresa).includes(n)
+    ).slice(0,6);
+  }
+  function aplicarCliente(c){
+    if(document.body.classList.contains('cc-mode')){
+      setIf('cc_cliente_nombre', c.nombre);
+      setIf('cc_cliente_doc_tipo', c.docTipo);
+      setIf('cc_cliente_doc', c.doc);
+      setIf('cc_cliente_tel_code', c.telCode);
+      setIf('cc_cliente_tel', c.tel);
+      setIf('cc_proyecto', c.proyecto);
+      setIf('cc_ubicacion', c.direccion);
+      if(typeof ccSaveState === 'function') ccSaveState();
+    }else{
+      setIf('f_cliente_nombre', c.nombre);
+      setIf('f_cliente_empresa', c.empresa);
+      setIf('f_cliente_doc_tipo', c.docTipo);
+      setIf('f_cliente_nit', c.doc);
+      setIf('f_cliente_tel_code', c.telCode);
+      setIf('f_cliente_tel_num', c.tel);
+      setIf('f_cliente_email', c.email);
+      setIf('f_proy_nombre', c.proyecto);
+      setIf('f_proy_direccion', c.direccion);
+      if(typeof saveState === 'function') saveState();
+    }
+    cerrarBox();
+  }
+  function mostrarSugerencias(input){
+    const res = coincidencias(input.value);
+    if(!res.length){ cerrarBox(); return; }
+    const b = crearBox(input);
+    res.forEach(c => {
+      const it = document.createElement('div');
+      it.style.cssText = 'padding:9px 11px;cursor:pointer;border-bottom:1px solid #F3F4F6;';
+      const t = document.createElement('strong');
+      t.style.color = '#111827';
+      t.textContent = c.nombre;
+      const sub = document.createElement('div');
+      sub.style.cssText = 'font-size:11px;color:#6B7280;';
+      sub.textContent = [c.empresa, c.doc, c.proyecto].filter(Boolean).join(' \u00b7 ');
+      it.appendChild(t); it.appendChild(sub);
+      it.onmouseenter = ()=>{ it.style.background = '#F9FAFB'; };
+      it.onmouseleave = ()=>{ it.style.background = '#fff'; };
+      it.onmousedown = (e)=>{ e.preventDefault(); aplicarCliente(c); };
+      b.appendChild(it);
+    });
+  }
+
+  const CAMPOS_BUSQUEDA = ['f_cliente_nombre','f_cliente_nit','cc_cliente_nombre','cc_cliente_doc'];
+  const CAMPOS_REGISTRO = ['f_cliente_nombre','f_cliente_empresa','f_cliente_nit','f_cliente_tel_num','f_cliente_email','f_proy_nombre','f_proy_direccion',
+                           'cc_cliente_nombre','cc_cliente_doc','cc_cliente_tel','cc_proyecto','cc_ubicacion'];
+
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(el && el.id && CAMPOS_BUSQUEDA.indexOf(el.id) >= 0) mostrarSugerencias(el);
+  }, true);
+  document.addEventListener('focusout', function(e){
+    if(e.target === boxInput) setTimeout(cerrarBox, 150);
+    if(e.target && e.target.id && CAMPOS_REGISTRO.indexOf(e.target.id) >= 0) window.recordarClienteActual();
+  }, true);
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cerrarBox(); }, true);
+  window.addEventListener('scroll', cerrarBox, true);
+  window.addEventListener('resize', cerrarBox);
+
+  /* ---- Duplicar / clonar documento ---- */
+  window.duplicarDocumento = async function(desdePreview){
+    if(desdePreview && typeof cerrarPreview === 'function') cerrarPreview();
+    if(document.body.classList.contains('cc-mode')){
+      const nuevo = (typeof siguienteNumeroCobro === 'function') ? siguienteNumeroCobro() : '';
+      if(nuevo) ccSet('cc_numero', nuevo);
+      ccSet('cc_fecha', todayStr(0));
+      ccSaveState();
+      ccSetStatus('Copia creada con el consecutivo ' + nuevo + ' y fecha de hoy.', 'ok');
+      window.scrollTo(0,0);
+      return;
+    }
+    if(typeof setStatus === 'function') setStatus('Creando una copia...');
+    let numero = '';
+    try{ numero = await siguienteNumeroInteligente(); }
+    catch(e){ numero = (typeof siguienteNumero === 'function') ? siguienteNumero() : ''; }
+    const fnum = document.getElementById('f_numero');
+    if(fnum && numero) fnum.value = numero;
+    const ffecha = document.getElementById('f_fecha');
+    if(ffecha) ffecha.value = todayStr(0);
+    window.__archivoOneDrive = null;
+    if(typeof desbloquearGuardado === 'function') desbloquearGuardado();
+    if(typeof saveState === 'function') saveState();
+    if(typeof mostrarGenerador === 'function') mostrarGenerador();
+    if(typeof setStatus === 'function') setStatus('Copia lista: ' + numero + ' con fecha de hoy. El archivo original no se modifica.', 'ok');
+  };
+
+  /* ---- Refuerzo de autoguardado (borradores locales) ---- */
+  let t = null;
+  function autoguardar(){
+    clearTimeout(t);
+    t = setTimeout(function(){
+      try{ if(typeof saveState === 'function') saveState(); }catch(e){}
+      try{ if(typeof ccSaveState === 'function') ccSaveState(); }catch(e){}
+    }, 350);
+  }
+  ['input','change'].forEach(ev => document.addEventListener(ev, autoguardar, true));
+  window.addEventListener('beforeunload', function(){
+    try{ if(typeof saveState === 'function') saveState(); }catch(e){}
+    try{ if(typeof ccSaveState === 'function') ccSaveState(); }catch(e){}
+  });
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden'){
+      try{ if(typeof saveState === 'function') saveState(); }catch(e){}
+      try{ if(typeof ccSaveState === 'function') ccSaveState(); }catch(e){}
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
