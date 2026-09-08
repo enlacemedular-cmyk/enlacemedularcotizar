@@ -3761,6 +3761,48 @@ async function guardarCobroEnOneDrive(){
       try{ if(typeof ccSaveState === 'function') ccSaveState(); }catch(e){}
     }
   });
+
+  /* ---- Protección de salida accidental ---- */
+  function enGenerador(){
+    return !document.body.classList.contains('home-mode');
+  }
+  window.addEventListener('beforeunload', function(e){
+    if(!enGenerador()) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  });
+
+  /* Centinela de historial para interceptar el botón Atrás. */
+  function ponerCentinela(){
+    try{ history.pushState({ medularGuard: true }, '', location.href); }catch(e){}
+  }
+  let centinelaPuesto = false;
+  function sincronizarCentinela(){
+    if(enGenerador() && !centinelaPuesto){
+      ponerCentinela();
+      centinelaPuesto = true;
+    } else if(!enGenerador()){
+      centinelaPuesto = false;
+    }
+  }
+  const obs = new MutationObserver(sincronizarCentinela);
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  sincronizarCentinela();
+
+  window.addEventListener('popstate', function(){
+    if(!enGenerador()) return;
+    const salir = window.confirm('¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.');
+    if(!salir){
+      ponerCentinela();
+      return;
+    }
+    centinelaPuesto = false;
+    try{ if(typeof saveState === 'function') saveState(); }catch(e){}
+    try{ if(typeof ccSaveState === 'function') ccSaveState(); }catch(e){}
+    document.body.classList.remove('cc-mode');
+    if(typeof mostrarInicio === 'function') mostrarInicio();
+  });
 })();
 </script>
 
