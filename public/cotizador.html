@@ -3240,9 +3240,11 @@ function initCuentaCobro(){
   });
 }
 
-function nuevaCuentaCobro(){
+async function nuevaCuentaCobro(){
   CC_IDS.forEach(id => ccSet(id, ''));
-  ccSet('cc_numero', siguienteNumeroCobro());
+  setHomeStatus('Calculando el consecutivo desde OneDrive...');
+  ccSet('cc_numero', await siguienteNumeroCobro());
+  setHomeStatus('');
   ccSet('cc_fecha', todayStr(0));
   ccSet('cc_titular', 'Cesar Augusto Medina Valderrama');
   ccSet('cc_titular_doc', '71.220.645');
