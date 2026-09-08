@@ -2601,27 +2601,58 @@ function siguienteNumero(){
   return 'MED' + String(n).padStart(4, '0');
 }
 
-/* Consecutivo inteligente: toma el número más alto que exista en OneDrive. */
-function maxNumeroOneDrive(){
-  let max = 0;
-  docResults.forEach(d=>{
-    const m = String(d.nombre||'').toUpperCase().match(/MED\s*(\d{3,})/);
-    if(m){ const n = parseInt(m[1],10); if(n > max) max = n; }
-  });
-  return max;
-}
-async function siguienteNumeroInteligente(){
+/* Consecutivo inteligente: llena el primer hueco libre de la secuencia real en OneDrive. */
+async function listarArchivosOneDrive(){
   try{
     const res = await fetch(ONEDRIVE_API + '?action=list');
     const data = await res.json();
-    if(res.ok){ docResults = normalizarDocs(data.files || []); docsCargados = true; renderDocs(); }
+    if(res.ok){
+      docResults = normalizarDocs(data.files || []);
+      docsCargados = true;
+      try{ renderDocs(); }catch(e){}
+      return data.files || [];
+    }
   }catch(e){}
-  let local = 0;
-  try{ local = parseInt(localStorage.getItem(LAST_NUM_KEY) || '0', 10) || 0; }catch(e){}
-  const n = Math.max(maxNumeroOneDrive(), local) + 1;
+  return null;
+}
+
+/* Devuelve el conjunto de números usados para un prefijo (MED o CC). */
+function numerosUsados(prefijo){
+  const usados = new Set();
+  const re = new RegExp('(?:^|[^A-Z])' + prefijo + '[\\s_-]*(\\d{2,})', 'g');
+  docResults.forEach(d=>{
+    const nombre = String(d && d.nombre || '').toUpperCase();
+    /* Evitar que "CC" capture coincidencias dentro de "MED..." o viceversa. */
+    let m;
+    re.lastIndex = 0;
+    while((m = re.exec(nombre)) !== null){
+      const n = parseInt(m[1], 10);
+      if(n > 0) usados.add(n);
+    }
+  });
+  return usados;
+}
+
+/* Primer número libre desde 1 en adelante. */
+function primerNumeroLibre(prefijo){
+  const usados = numerosUsados(prefijo);
+  let reservados = [];
+  try{ reservados = JSON.parse(localStorage.getItem('medular_reservados_' + prefijo) || '[]'); }catch(e){ reservados = []; }
+  reservados.forEach(n => usados.add(Number(n)));
+  let n = 1;
+  while(usados.has(n)) n++;
+  reservados.push(n);
+  try{ localStorage.setItem('medular_reservados_' + prefijo, JSON.stringify(reservados.slice(-50))); }catch(e){}
+  return n;
+}
+
+async function siguienteNumeroInteligente(){
+  await listarArchivosOneDrive();
+  const n = primerNumeroLibre('MED');
   try{ localStorage.setItem(LAST_NUM_KEY, String(n)); }catch(e){}
   return 'MED' + String(n).padStart(4, '0');
 }
+
 
 async function nuevaCotizacion(){
   setHomeStatus('Calculando el consecutivo desde OneDrive...');
