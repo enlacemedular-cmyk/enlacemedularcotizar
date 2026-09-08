@@ -3201,10 +3201,10 @@ function ccLoadState(){
   }catch(e){ return false; }
 }
 
-function siguienteNumeroCobro(){
-  let n = 0;
-  try{ n = parseInt(localStorage.getItem(CC_LAST_NUM_KEY) || '0', 10) || 0; }catch(e){}
-  n = n + 1;
+/* Consecutivo de cuentas de cobro: llena el primer hueco libre según OneDrive. */
+async function siguienteNumeroCobro(){
+  try{ await listarArchivosOneDrive(); }catch(e){}
+  const n = primerNumeroLibre('CC');
   try{ localStorage.setItem(CC_LAST_NUM_KEY, String(n)); }catch(e){}
   return 'CC' + String(n).padStart(4, '0');
 }
