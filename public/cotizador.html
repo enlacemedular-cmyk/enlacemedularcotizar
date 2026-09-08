@@ -3718,7 +3718,7 @@ async function guardarCobroEnOneDrive(){
   window.duplicarDocumento = async function(desdePreview){
     if(desdePreview && typeof cerrarPreview === 'function') cerrarPreview();
     if(document.body.classList.contains('cc-mode')){
-      const nuevo = (typeof siguienteNumeroCobro === 'function') ? siguienteNumeroCobro() : '';
+      const nuevo = (typeof siguienteNumeroCobro === 'function') ? await siguienteNumeroCobro() : '';
       if(nuevo) ccSet('cc_numero', nuevo);
       ccSet('cc_fecha', todayStr(0));
       ccSaveState();
