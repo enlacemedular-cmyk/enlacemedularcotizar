@@ -2847,15 +2847,16 @@ async function descargarContenidoOneDrive(id){
   return data.contenido || '';
 }
 
-/* Guarda / actualiza el estado del generador como JSON en OneDrive. */
+/* Guarda / actualiza el PDF en OneDrive y fuerza la descarga local. */
 async function guardarEnOneDrive(){
-  const nombre = (window.__archivoOneDrive && /\.pdf$/i.test(window.__archivoOneDrive))
-    ? window.__archivoOneDrive
-    : (nombreArchivo() + '.pdf');
+  /* El nombre se genera SIEMPRE desde el estado actual del formulario
+     (consecutivo + tipo + cliente), ignorando el nombre original del historial. */
+  const nombre = nombreArchivo() + '.pdf';
   setStatus('Generando PDF y guardando en OneDrive...');
   try{
     const pdf = await buildPdfDoc();
-    const b64 = await blobABase64(pdf.output('blob'));
+    const blob = pdf.output('blob');
+    const b64 = await blobABase64(blob);
     const res = await fetch(ONEDRIVE_API, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
@@ -2865,10 +2866,25 @@ async function guardarEnOneDrive(){
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
     window.__archivoOneDrive = data.nombre || nombre;
     cacheGuardarEstado(window.__archivoOneDrive, collectState());
-    setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}".`, 'ok');
+    descargarBlob(blob, nombre);
+    setStatus(`Guardado en OneDrive como "${window.__archivoOneDrive}" y descargado localmente.`, 'ok');
   }catch(err){
     setStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
+}
+
+/* Fuerza la descarga nativa de un Blob en el navegador. */
+function descargarBlob(blob, nombre){
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  }catch(e){ /* no bloquear el flujo si la descarga falla */ }
 }
 
 /* ---- Estado embebido en el PDF (para re-editar sin archivos .json) ---- */
@@ -3419,7 +3435,9 @@ async function guardarCobroEnOneDrive(){
   ccSetStatus('Generando PDF y guardando en OneDrive...');
   try{
     const pdf = await buildPdfCobroDoc();
-    const b64 = await blobABase64(pdf.output('blob'));
+    const blob = pdf.output('blob');
+    const b64 = await blobABase64(blob);
+    /* Nombre dinámico: se recalcula con los valores actuales del formulario. */
     const nombre = nombreArchivoCobro() + '.pdf';
     const res = await fetch(ONEDRIVE_API, {
       method: 'POST',
@@ -3428,7 +3446,8 @@ async function guardarCobroEnOneDrive(){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
-    ccSetStatus(`Guardado en OneDrive como "${data.nombre || nombre}".`, 'ok');
+    descargarBlob(blob, nombre);
+    ccSetStatus(`Guardado en OneDrive como "${data.nombre || nombre}" y descargado localmente.`, 'ok');
   }catch(err){
     ccSetStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
   }
