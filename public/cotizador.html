@@ -2633,16 +2633,11 @@ function numerosUsados(prefijo){
   return usados;
 }
 
-/* Primer número libre desde 1 en adelante. */
+/* Primer número libre desde 1 en adelante (llena huecos). */
 function primerNumeroLibre(prefijo){
   const usados = numerosUsados(prefijo);
-  let reservados = [];
-  try{ reservados = JSON.parse(localStorage.getItem('medular_reservados_' + prefijo) || '[]'); }catch(e){ reservados = []; }
-  reservados.forEach(n => usados.add(Number(n)));
   let n = 1;
   while(usados.has(n)) n++;
-  reservados.push(n);
-  try{ localStorage.setItem('medular_reservados_' + prefijo, JSON.stringify(reservados.slice(-50))); }catch(e){}
   return n;
 }
 
