@@ -1106,16 +1106,42 @@ function updateItemUnidad(id, value){
   const it = items.find(i => i.id === id);
   if(it) it.unidad = value;
 }
+/* Enmascarado visual de moneda: muestra separadores de miles, guarda número puro */
+function soloDigitos(v){ return String(v==null?'':v).replace(/[^0-9]/g,''); }
+function maskMiles(v){
+  const d = soloDigitos(v).replace(/^0+(?=\d)/,'');
+  return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+}
+function onMoneyInput(inputEl, cb){
+  const posDesdeFin = inputEl.value.length - (inputEl.selectionStart ?? inputEl.value.length);
+  const puro = soloDigitos(inputEl.value);
+  inputEl.value = maskMiles(puro);
+  const nuevaPos = Math.max(0, inputEl.value.length - posDesdeFin);
+  try{ inputEl.setSelectionRange(nuevaPos, nuevaPos); }catch(e){}
+  cb(puro === '' ? 0 : parseInt(puro, 10));
+}
+function moveItem(id, dir){
+  const i = items.findIndex(it => it.id === id);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= items.length) return;
+  const tmp = items[i]; items[i] = items[j]; items[j] = tmp;
+  renderItems();
+  saveState();
+}
 function renderItems(){
   const c = document.getElementById('items-container');
   c.innerHTML = '';
-  items.forEach(it => {
+  items.forEach((it, idx) => {
     const div = document.createElement('div');
     div.className = 'item-row';
     div.setAttribute('data-item-id', it.id);
     const unitOpts = UNIT_OPTIONS.map(u => `<option value="${esc(u)}" ${u===it.unidad?'selected':''}>${esc(u)}</option>`).join('');
     div.innerHTML = `
-      <button class="remove-btn" onclick="removeItem(${it.id})">✕ Quitar</button>
+      <div style="position:absolute;top:10px;right:10px;display:flex;gap:6px;align-items:center;">
+        <button type="button" class="remove-btn" style="position:static;padding:2px 8px;" title="Subir ítem" ${idx===0?'disabled':''} onclick="moveItem(${it.id},-1)">↑</button>
+        <button type="button" class="remove-btn" style="position:static;padding:2px 8px;" title="Bajar ítem" ${idx===items.length-1?'disabled':''} onclick="moveItem(${it.id},1)">↓</button>
+        <button type="button" class="remove-btn" style="position:static;" onclick="removeItem(${it.id})">✕ Quitar</button>
+      </div>
       <div class="field"><label>Descripción</label>
         <input value="${esc(it.desc)}" oninput="updateItem(${it.id},'desc',this.value)" placeholder="Ej: Demolición de muros" spellcheck="true" lang="es" list="item-desc-suggestions" onblur="capitalizeItemDesc(${it.id},this)">
       </div>
@@ -1123,7 +1149,7 @@ function renderItems(){
         <div class="field"><label>Cantidad</label><input type="number" inputmode="numeric" value="${it.cant}" oninput="updateItem(${it.id},'cant',this.value)" onfocus="this.select()"></div>
         <div class="field"><label>Unidad</label><select onchange="updateItemUnidad(${it.id},this.value)">${unitOpts}</select></div>
       </div>
-      <div class="field"><label>Valor unitario</label><input type="number" inputmode="numeric" value="${it.valor}" oninput="updateItem(${it.id},'valor',this.value)" onfocus="this.select()"></div>
+      <div class="field"><label>Valor unitario</label><input type="text" inputmode="numeric" value="${maskMiles(it.valor)}" oninput="onMoneyInput(this, v => updateItem(${it.id},'valor',v))" onfocus="this.select()" placeholder="0"></div>
       <div class="item-total-line"><span>Total ítem</span><span class="val">${money(it.cant * it.valor)}</span></div>
     `;
     c.appendChild(div);
