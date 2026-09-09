@@ -1209,7 +1209,7 @@ function renderMateriales(){
       <div class="field"><label>Material</label>
         <input value="${esc(mat.desc)}" oninput="updateMaterial(${mat.id},'desc',this.value)" onchange="updateMaterialDesc(${mat.id},this.value)" placeholder="Ej: Viniltex" spellcheck="true" lang="es" list="material-suggestions" onblur="capitalizeMaterialDesc(${mat.id},this)">
       </div>
-      <div class="field"><label>Precio unitario (opcional)</label><input type="number" inputmode="numeric" value="${mat.precio||''}" oninput="updateMaterial(${mat.id},'precio',this.value)" onfocus="this.select()" placeholder="0"></div>
+      <div class="field"><label>Precio unitario (opcional)</label><input type="text" inputmode="numeric" value="${mat.precio ? maskMiles(mat.precio) : ''}" oninput="onMoneyInput(this, v => updateMaterial(${mat.id},'precio',v))" onfocus="this.select()" placeholder="0"></div>
       <div class="item-grid">
         <div class="field"><label>Unidad</label><select onchange="updateMaterial(${mat.id},'unidad',this.value)">${unitOpts}</select></div>
         <div class="field"><label>Cantidad</label><input type="number" inputmode="numeric" value="${mat.cantidad}" oninput="updateMaterial(${mat.id},'cantidad',this.value)" onfocus="this.select()"></div>
