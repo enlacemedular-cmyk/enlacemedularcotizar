@@ -304,6 +304,8 @@
   input, textarea, select, [contenteditable]{ -webkit-user-select:text; user-select:text; }
   @media (max-width:720px){ input, textarea, select{ font-size:16px !important; } }
   .modal-backdrop:not(.open){ pointer-events:none; }
+  html{ scroll-padding-bottom:150px; scroll-padding-top:20px; }
+  @media (max-width:900px){ body.kb-open .download-bar{ display:none !important; } }
   .ai-tip .ai-lab{ display:block; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--gold); font-weight:800; margin-bottom:3px; }
   .ai-tip .ai-txt{ display:block; color:#E5E7EB; }
   .ai-tip .ai-act{ margin-top:7px; font-size:10.5px; color:#9CA3AF; }
@@ -3852,5 +3854,19 @@ async function guardarCobroEnOneDrive(){
 })();
 </script>
 
+<script>
+(function(){
+  var sel='input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file]), textarea, select';
+  document.addEventListener('focusin', function(e){
+    if(e.target && e.target.matches && e.target.matches(sel)){
+      document.body.classList.add('kb-open');
+      var el=e.target; setTimeout(function(){ try{ el.scrollIntoView({block:'center'}); }catch(_){} }, 300);
+    }
+  });
+  document.addEventListener('focusout', function(){
+    setTimeout(function(){ var a=document.activeElement; if(!(a && a.matches && a.matches(sel))) document.body.classList.remove('kb-open'); }, 120);
+  });
+})();
+</script>
 </body>
 </html>
