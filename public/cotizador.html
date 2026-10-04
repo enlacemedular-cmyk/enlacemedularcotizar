@@ -3860,7 +3860,6 @@ async function guardarCobroEnOneDrive(){
   document.addEventListener('focusin', function(e){
     if(e.target && e.target.matches && e.target.matches(sel)){
       document.body.classList.add('kb-open');
-      var el=e.target; setTimeout(function(){ try{ el.scrollIntoView({block:'center'}); }catch(_){} }, 300);
     }
   });
   document.addEventListener('focusout', function(){
