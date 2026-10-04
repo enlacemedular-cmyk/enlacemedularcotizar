@@ -296,8 +296,14 @@
     border-radius:8px; padding:9px 11px; font-size:12px; line-height:1.45;
     box-shadow:0 8px 24px rgba(0,0,0,.22);
     opacity:0; transform:translateY(-4px); transition:opacity .12s ease, transform .12s ease;
+    pointer-events:none; visibility:hidden;
   }
-  .ai-tip.show{ opacity:1; transform:translateY(0); }
+  .ai-tip.show{ opacity:1; transform:translateY(0); pointer-events:auto; visibility:visible; }
+  /* Táctil: todos los controles responden al toque */
+  input, textarea, select, button, [contenteditable]{ touch-action:manipulation; pointer-events:auto; }
+  input, textarea, select, [contenteditable]{ -webkit-user-select:text; user-select:text; }
+  @media (max-width:720px){ input, textarea, select{ font-size:16px !important; } }
+  .modal-backdrop:not(.open){ pointer-events:none; }
   .ai-tip .ai-lab{ display:block; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--gold); font-weight:800; margin-bottom:3px; }
   .ai-tip .ai-txt{ display:block; color:#E5E7EB; }
   .ai-tip .ai-act{ margin-top:7px; font-size:10.5px; color:#9CA3AF; }
@@ -3038,7 +3044,7 @@ async function seleccionarDocumento(idx){
       if(_previewURL) URL.revokeObjectURL(_previewURL);
       _previewURL = URL.createObjectURL(blob);
       vistaPrevia = `<iframe src="${_previewURL}" title="Vista previa"></iframe>
-        <p style="font-size:12px;margin:8px 0 0;"><a href="${_previewURL}" target="_blank" rel="noopener" style="color:#C59B27;font-weight:700;">Abrir en otra pestaña</a></p>`;
+        <p style="font-size:12px;margin:8px 0 0;"><a href="${_previewURL}" download="${String(d.nombre).replace(/"/g,'')}" style="color:#C59B27;font-weight:700;">Descargar archivo</a></p>`;
     }catch(e){ vistaPrevia = ''; }
   }
 
@@ -3052,13 +3058,7 @@ async function seleccionarDocumento(idx){
     setHomeStatus('');
     mostrarGenerador();
     setStatus(`Cotización "${d.nombre}" cargada para editar.`, 'ok');
-    if(!vistaPrevia){
-      try{
-        await preloadImages();
-        vistaPrevia = `<div class="doc-scale">${buildExportHTML(false)}</div>`;
-      }catch(e){}
-    }
-    if(vistaPrevia) abrirPreview(d.nombre, vistaPrevia);
+    try{ window.scrollTo(0,0); }catch(e){}
     return;
   }
 
@@ -3501,7 +3501,7 @@ async function guardarCobroEnOneDrive(){
     tip.className='ai-tip';
     tip.innerHTML='<span class="ai-lab">Sugerencia de redacción</span><span class="ai-txt"></span>'+
       '<div class="ai-act"><button type="button" class="ai-apply">Aplicar</button>Tab para aplicar · Esc para descartar</div>';
-    tip.querySelector('.ai-apply').addEventListener('mousedown', function(e){ e.preventDefault(); aplicar(); });
+    tip.querySelector('.ai-apply').addEventListener('pointerdown', function(e){ e.preventDefault(); aplicar(); });
     document.body.appendChild(tip);
     return tip;
   }
@@ -3739,7 +3739,7 @@ async function guardarCobroEnOneDrive(){
       it.appendChild(t); it.appendChild(sub);
       it.onmouseenter = ()=>{ it.style.background = '#F9FAFB'; };
       it.onmouseleave = ()=>{ it.style.background = '#fff'; };
-      it.onmousedown = (e)=>{ e.preventDefault(); aplicarCliente(c); };
+      it.onpointerdown = (e)=>{ e.preventDefault(); aplicarCliente(c); };
       b.appendChild(it);
     });
   }
@@ -3757,7 +3757,7 @@ async function guardarCobroEnOneDrive(){
     if(e.target && e.target.id && CAMPOS_REGISTRO.indexOf(e.target.id) >= 0) window.recordarClienteActual();
   }, true);
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cerrarBox(); }, true);
-  window.addEventListener('scroll', cerrarBox, true);
+  window.addEventListener('scroll', function(e){ if(box && (e.target===box || box.contains(e.target))) return; cerrarBox(); }, true);
   window.addEventListener('resize', cerrarBox);
 
   /* ---- Duplicar / clonar documento ---- */
