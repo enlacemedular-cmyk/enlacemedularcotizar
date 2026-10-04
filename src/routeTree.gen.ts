@@ -9,29 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiPublicRedaccionRouteImport } from './routes/api/public/redaccion'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ApiPublicOnedriveRouteImport } from './routes/api/public/onedrive'
+import { Route as ApiPublicRedaccionRouteImport } from './routes/api/public/redaccion'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicRedaccionRoute = ApiPublicRedaccionRouteImport.update({
-  id: '/api/public/redaccion',
-  path: '/api/public/redaccion',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicOnedriveRoute = ApiPublicOnedriveRouteImport.update({
   id: '/api/public/onedrive',
   path: '/api/public/onedrive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRedaccionRoute = ApiPublicRedaccionRouteImport.update({
+  id: '/api/public/redaccion',
+  path: '/api/public/redaccion',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -57,10 +57,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/sitemap.xml'
-    | '/api/public/onedrive'
-    | '/api/public/redaccion'
+    '/' | '/sitemap.xml' | '/api/public/onedrive' | '/api/public/redaccion'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/sitemap.xml' | '/api/public/onedrive' | '/api/public/redaccion'
   id:
@@ -80,13 +77,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -94,11 +84,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/redaccion': {
-      id: '/api/public/redaccion'
-      path: '/api/public/redaccion'
-      fullPath: '/api/public/redaccion'
-      preLoaderRoute: typeof ApiPublicRedaccionRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/onedrive': {
@@ -106,6 +96,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/onedrive'
       fullPath: '/api/public/onedrive'
       preLoaderRoute: typeof ApiPublicOnedriveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/redaccion': {
+      id: '/api/public/redaccion'
+      path: '/api/public/redaccion'
+      fullPath: '/api/public/redaccion'
+      preLoaderRoute: typeof ApiPublicRedaccionRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
