@@ -1664,6 +1664,7 @@ function applyState(state){
   renderEncargados();
   renderBancos();
   refreshQuoteModeUI();
+  MedularSignature.refresh();
 }
 function tryRestoreState(){
   try{
@@ -2634,6 +2635,7 @@ function reiniciarFormulario(silent){
   renderCondiciones();
   renderEncargados();
   renderBancos();
+  MedularSignature.refresh();
   saveState();
   if(!silent) setStatus('Formulario reiniciado.', 'ok');
   return true;
@@ -3092,6 +3094,18 @@ async function seleccionarDocumento(idx){
   }
 
   if(estado && typeof estado === 'object'){
+    if('cc_numero' in estado){
+      CC_IDS.forEach(id => ccSet(id, estado[id] ?? ''));
+      MedularSignature.refresh();
+      ccSaveState();
+      cacheGuardarEstado(d.nombre, estado);
+      setHomeStatus('');
+      document.body.classList.remove('home-mode');
+      document.body.classList.add('cc-mode');
+      ccSetStatus(`Cuenta de cobro "${d.nombre}" cargada para editar.`, 'ok');
+      window.scrollTo(0,0);
+      return;
+    }
     reiniciarFormulario(true);
     applyState(estado);
     window.__archivoOneDrive = d.nombre;
@@ -3215,7 +3229,7 @@ const CC_IDS = ['cc_numero','cc_fecha','cc_cliente_nombre','cc_cliente_doc_tipo'
   'cc_firma_nombre','cc_firma_cargo','cc_firma_tel','cc_firma_email','cc_cliente_firma'];
 
 function ccGet(id){ return (document.getElementById(id) || {value:''}).value; }
-function ccSet(id, v){ const el = document.getElementById(id); if(el) el.value = v; }
+function ccSet(id, v){ const el = document.getElementById(id); if(el) el.value = v; if(id==='cc_cliente_firma') MedularSignature.refresh(); }
 
 function ccSetStatus(msg, cls){
   const el = document.getElementById('cc-status');
@@ -3283,6 +3297,7 @@ function ccLoadState(){
     if(!raw) return false;
     const s = JSON.parse(raw);
     CC_IDS.forEach(id => { if(s[id] != null) ccSet(id, s[id]); });
+    MedularSignature.refresh();
     return true;
   }catch(e){ return false; }
 }
@@ -3448,6 +3463,7 @@ function buildCobroHTML(){
 async function buildPdfCobroDoc(){
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
+  pdf.setProperties({keywords:'MEDULARSTATE:' + estadoAB64(ccCollectState())});
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:2147483000;padding:0 0 20px;';
   host.innerHTML = buildCobroHTML();
@@ -3518,6 +3534,7 @@ async function guardarCobroEnOneDrive(){
     const data = await res.json();
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
     descargarBlob(blob, nombre);
+    cacheGuardarEstado(nombre, ccCollectState());
     ccSetStatus(`Guardado en OneDrive como "${data.nombre || nombre}" y descargado localmente.`, 'ok');
   }catch(err){
     ccSetStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
