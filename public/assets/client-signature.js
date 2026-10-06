@@ -90,9 +90,11 @@
     // Handle touch on release, without depending on a delayed synthetic click.
     dialog.querySelectorAll('button').forEach(button => {
       const action = button.onclick;
-      button.onclick = e => { if(e.pointerType !== 'touch') action?.(e); };
+      let lastTouch = 0;
+      button.onclick = e => { if(e.pointerType !== 'touch' && Date.now()-lastTouch>700) action?.(e); };
       button.addEventListener('pointerup', e => {
         if(e.pointerType !== 'touch' || button.disabled) return;
+        lastTouch = Date.now();
         e.preventDefault(); action?.(e);
       });
     });
