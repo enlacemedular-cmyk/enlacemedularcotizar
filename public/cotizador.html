@@ -6,6 +6,7 @@
 <title>MEDULAR · Generador de Cotizaciones</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="/assets/client-signature.js"></script>
 
 <style>
   :root{
@@ -313,6 +314,16 @@
     background:var(--gold); border:none; color:#111827; font-weight:800; font-size:10.5px;
     padding:4px 8px; border-radius:5px; cursor:pointer; margin-right:6px;
   }
+  .client-signature-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;}
+  .client-signature-controls img{width:156px;height:52px;object-fit:contain;max-width:100%;}
+  #client-signature-dialog{border:1px solid var(--border);border-radius:8px;background:var(--gray-light);color:var(--text-1);width:min(600px,calc(100% - 24px));max-height:90dvh;overflow:auto;padding:18px;}
+  #client-signature-dialog::backdrop{background:var(--dark);opacity:.65;}
+  #client-signature-dialog h3{margin:0 0 14px;}
+  #client-signature-canvas{display:block;width:100%;aspect-ratio:3 / 1;background:var(--gray-light);border:1px solid var(--border);border-bottom:2px solid var(--gold);touch-action:none;user-select:none;-webkit-user-select:none;}
+  .signature-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+  .signature-tools .add-btn{width:auto;min-height:44px;margin:0;}
+  #client-signature-dialog .modal-actions{flex-direction:row;}
+  #signature-error{color:var(--danger);font-size:13px;min-height:20px;margin:8px 0;}
 </style>
 
 </head>
@@ -407,6 +418,12 @@
           </div>
         </div>
         <div class="field"><label>Email</label><input id="f_cliente_email" type="email" class="persist-field" placeholder="correo@ejemplo.com"></div>
+        <input type="hidden" id="f_cliente_firma" class="persist-field">
+        <div class="client-signature-controls" data-client-signature="quote">
+          <img alt="Firma del cliente" hidden>
+          <button type="button" class="add-btn" data-sign-open>✍ Firmar cliente</button>
+          <button type="button" class="add-btn" data-sign-remove hidden>Quitar firma</button>
+        </div>
       </div>
     </details>
 
@@ -651,6 +668,17 @@
           <div class="field"><label>Email (opcional)</label><input id="cc_firma_email" class="cc-field" placeholder="correo@medular.co"></div>
         </div>
       </details>
+      <details class="card" open>
+        <summary>Firma del cliente</summary>
+        <div class="card-body">
+          <input type="hidden" id="cc_cliente_firma" class="cc-field">
+          <div class="client-signature-controls" data-client-signature="cobro">
+            <img alt="Firma del cliente" hidden>
+            <button type="button" class="add-btn" data-sign-open>✍ Firmar cliente</button>
+            <button type="button" class="add-btn" data-sign-remove hidden>Quitar firma</button>
+          </div>
+        </div>
+      </details>
     </div>
     <div class="download-bar">
       <div class="btn-row">
@@ -701,6 +729,19 @@
     </div>
   </div>
 
+  <dialog id="client-signature-dialog" aria-labelledby="signature-title">
+    <h3 id="signature-title">Firma del cliente</h3>
+    <canvas id="client-signature-canvas" width="900" height="300" aria-label="Área para dibujar la firma del cliente"></canvas>
+    <div class="signature-tools">
+      <button type="button" class="add-btn" id="signature-undo" title="Deshacer último trazo" aria-label="Deshacer último trazo">↶</button>
+      <button type="button" class="add-btn" id="signature-clear">Limpiar</button>
+    </div>
+    <p id="signature-error" role="status"></p>
+    <div class="modal-actions">
+      <button type="button" class="cancel" id="signature-cancel">Cancelar</button>
+      <button type="button" class="ok" id="signature-save">Guardar firma</button>
+    </div>
+  </dialog>
   <div id="print-area"></div>
 
 <script>
@@ -1623,6 +1664,7 @@ function applyState(state){
   renderEncargados();
   renderBancos();
   refreshQuoteModeUI();
+  MedularSignature.refresh();
 }
 function tryRestoreState(){
   try{
@@ -1685,7 +1727,7 @@ function computeQuoteData(){
     condiciones: condicionesData,
     entrega: getEntregaTexto(), validez: getValidezTexto(),
     subtotal, iva, total, ivaPct,
-    firmaSrc, conNombre: g('f_con_nombre'), conRol: g('f_con_rol'), conTel: telConVal, conEmail: g('f_con_email'),
+    firmaSrc, clienteFirma: MedularSignature.image('quote'), conNombre: g('f_con_nombre'), conRol: g('f_con_rol'), conTel: telConVal, conEmail: g('f_con_email'),
     llave: getLlave(),
     bancos: bancosData
   };
@@ -1831,7 +1873,7 @@ function buildQuoteHTML(){
             ${d.firmaSrc ? `<img src="${d.firmaSrc}" style="height:52px;width:auto;display:block;margin:0 0 2px 0;" />` : `<div style="height:52px;"></div>`}
           </td>
           <td style="vertical-align:bottom;width:50%;padding-top:14px;height:60px;">
-            <div style="height:52px;"></div>
+            ${d.clienteFirma || '<div style="height:52px;"></div>'}
           </td>
         </tr>
         <tr>
@@ -2032,7 +2074,7 @@ function buildQuoteHTMLWord(){
         </table>` : ''}
       </td>
       <td width="50%" valign="bottom" align="left" style="padding-top:14px;">
-        ${d.firmaSrc ? `<div style="height:54px;"></div>` : ''}
+        ${d.clienteFirma || (d.firmaSrc ? `<div style="height:54px;"></div>` : '')}
         <table cellpadding="0" cellspacing="0" border="0" align="left" style="border-top:1px solid #9CA3AF;width:240px;">
           <tr><td style="padding-top:4px;" align="left">
             <p style="margin:0;font-size:9pt;font-weight:bold;color:#111827;">${esc(d.clienteNombre)}</p>
@@ -2593,6 +2635,7 @@ function reiniciarFormulario(silent){
   renderCondiciones();
   renderEncargados();
   renderBancos();
+  MedularSignature.refresh();
   saveState();
   if(!silent) setStatus('Formulario reiniciado.', 'ok');
   return true;
@@ -3051,6 +3094,18 @@ async function seleccionarDocumento(idx){
   }
 
   if(estado && typeof estado === 'object'){
+    if('cc_numero' in estado){
+      CC_IDS.forEach(id => ccSet(id, estado[id] ?? ''));
+      MedularSignature.refresh();
+      ccSaveState();
+      cacheGuardarEstado(d.nombre, estado);
+      setHomeStatus('');
+      document.body.classList.remove('home-mode');
+      document.body.classList.add('cc-mode');
+      ccSetStatus(`Cuenta de cobro "${d.nombre}" cargada para editar.`, 'ok');
+      window.scrollTo(0,0);
+      return;
+    }
     reiniciarFormulario(true);
     applyState(estado);
     window.__archivoOneDrive = d.nombre;
@@ -3171,10 +3226,10 @@ const CC_LAST_NUM_KEY = 'medular_last_cc_num';
 const CC_IDS = ['cc_numero','cc_fecha','cc_cliente_nombre','cc_cliente_doc_tipo','cc_cliente_doc',
   'cc_cliente_tel_code','cc_cliente_tel','cc_proyecto','cc_ubicacion','cc_concepto','cc_valor',
   'cc_valor_letras','cc_banco','cc_tipo_cuenta','cc_cuenta_num','cc_titular','cc_titular_doc',
-  'cc_firma_nombre','cc_firma_cargo','cc_firma_tel','cc_firma_email'];
+  'cc_firma_nombre','cc_firma_cargo','cc_firma_tel','cc_firma_email','cc_cliente_firma'];
 
 function ccGet(id){ return (document.getElementById(id) || {value:''}).value; }
-function ccSet(id, v){ const el = document.getElementById(id); if(el) el.value = v; }
+function ccSet(id, v){ const el = document.getElementById(id); if(el) el.value = v; if(id==='cc_cliente_firma') MedularSignature.refresh(); }
 
 function ccSetStatus(msg, cls){
   const el = document.getElementById('cc-status');
@@ -3242,6 +3297,7 @@ function ccLoadState(){
     if(!raw) return false;
     const s = JSON.parse(raw);
     CC_IDS.forEach(id => { if(s[id] != null) ccSet(id, s[id]); });
+    MedularSignature.refresh();
     return true;
   }catch(e){ return false; }
 }
@@ -3396,6 +3452,7 @@ function buildCobroHTML(){
             <span style="color:#6B7280;">NIT/CC ${esc(ccGet('cc_titular_doc'))}</span>
           </p>
         </div>
+        ${MedularSignature.value('cobro') ? `<div style="margin-top:18px;min-width:0;max-width:100%;">${MedularSignature.image('cobro')}<div style="border-top:1px solid #9CA3AF;padding-top:4px;overflow-wrap:anywhere;"><p style="font-size:11px;font-weight:600;margin:0;">${esc(ccGet('cc_cliente_nombre'))}</p><p style="font-size:11px;color:#6B7280;margin:2px 0 0;">Firma del cliente</p></div></div>` : ''}
       </div>
     </div>
 
@@ -3406,6 +3463,7 @@ function buildCobroHTML(){
 async function buildPdfCobroDoc(){
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
+  pdf.setProperties({keywords:'MEDULARSTATE:' + estadoAB64(ccCollectState())});
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:2147483000;padding:0 0 20px;';
   host.innerHTML = buildCobroHTML();
@@ -3476,6 +3534,7 @@ async function guardarCobroEnOneDrive(){
     const data = await res.json();
     if(!res.ok) throw new Error(data && data.error ? data.error : 'Error al guardar');
     descargarBlob(blob, nombre);
+    cacheGuardarEstado(nombre, ccCollectState());
     ccSetStatus(`Guardado en OneDrive como "${data.nombre || nombre}" y descargado localmente.`, 'ok');
   }catch(err){
     ccSetStatus('No se pudo guardar en OneDrive: ' + (err && err.message ? err.message : 'error'), 'err');
@@ -3769,6 +3828,7 @@ async function guardarCobroEnOneDrive(){
       const nuevo = (typeof siguienteNumeroCobro === 'function') ? await siguienteNumeroCobro() : '';
       if(nuevo) ccSet('cc_numero', nuevo);
       ccSet('cc_fecha', todayStr(0));
+      MedularSignature.clear('cobro');
       ccSaveState();
       ccSetStatus('Copia creada con el consecutivo ' + nuevo + ' y fecha de hoy.', 'ok');
       window.scrollTo(0,0);
@@ -3782,6 +3842,7 @@ async function guardarCobroEnOneDrive(){
     if(fnum && numero) fnum.value = numero;
     const ffecha = document.getElementById('f_fecha');
     if(ffecha) ffecha.value = todayStr(0);
+    MedularSignature.clear('quote');
     window.__archivoOneDrive = null;
     if(typeof desbloquearGuardado === 'function') desbloquearGuardado();
     if(typeof saveState === 'function') saveState();
