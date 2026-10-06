@@ -87,6 +87,15 @@
       host.querySelector('[data-sign-open]').onclick=()=>api.open(type);
       host.querySelector('[data-sign-remove]').onclick=()=>api.clear(type);
     });
+    // Handle touch on release, without depending on a delayed synthetic click.
+    dialog.querySelectorAll('button').forEach(button => {
+      const action = button.onclick;
+      button.onclick = e => { if(e.pointerType !== 'touch') action?.(e); };
+      button.addEventListener('pointerup', e => {
+        if(e.pointerType !== 'touch' || button.disabled) return;
+        e.preventDefault(); action?.(e);
+      });
+    });
     api.refresh();
   });
 })();
