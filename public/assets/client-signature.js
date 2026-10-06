@@ -63,6 +63,7 @@
     canvas.addEventListener('pointerdown', e => {
       if(drawing || (e.pointerType==='mouse' && e.button!==0)) return;
       e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+      document.getElementById('signature-error').textContent = '';
       drawing = {id:e.pointerId,path:[point(e)]}; paths.push(drawing.path); paint();
     });
     canvas.addEventListener('pointermove', e => { if(!drawing || drawing.id!==e.pointerId) return; e.preventDefault(); drawing.path.push(point(e)); paint(); });
