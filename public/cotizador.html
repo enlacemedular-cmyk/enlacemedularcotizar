@@ -356,6 +356,10 @@
           <button class="filter-chip" data-filter="MO" onclick="setDocFilter('MO')">Mano de obra</button>
           <button class="filter-chip" data-filter="TC" onclick="setDocFilter('TC')">Todo costo</button>
           <button class="filter-chip" data-filter="MO.TC" onclick="setDocFilter('MO.TC')">Ambas</button>
+          <select id="doc-sort" onchange="renderDocs()" aria-label="Ordenar" style="margin-left:auto;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;font-size:13px;">
+            <option value="fecha">Más reciente</option>
+            <option value="numero">Por consecutivo</option>
+          </select>
         </div>
         <div class="doc-list" id="doc-list"></div>
         <div class="home-status" id="home-status"></div>
@@ -379,7 +383,7 @@
       <summary>Datos de la cotización</summary>
       <div class="card-body">
         <div class="row2">
-          <div class="field"><label>Número</label><input id="f_numero" class="persist-field" value="MED0001"></div>
+          <div class="field"><label>Número</label><input id="f_numero" class="persist-field" value="MO0001"></div>
           <div class="field"><label>Fecha de emisión</label><input id="f_fecha" type="date" class="persist-field"></div>
         </div>
         <div class="checkbox-row">
@@ -966,6 +970,7 @@ function changeQuoteMode(mode){
   quoteStates[activeQuoteType]=snapshotActiveQuote();
   if(mode==='labor') loadQuoteState('labor'); else if(mode==='allcost') loadQuoteState('allcost'); else loadQuoteState(activeQuoteType);
   refreshQuoteModeUI(); saveState();
+  recalcularNumeroPorModalidad();
 }
 function refreshQuoteModeUI(){
   const mode=document.getElementById('f_quote_mode')?.value||'labor'; const both=mode==='both';
@@ -2198,7 +2203,7 @@ function limpiaNombre(t){
     .replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim().replace(/\s/g,'') || '';
 }
 function nombreArchivo(){
-  const numero = document.getElementById('f_numero').value || 'MED0001';
+  const numero = document.getElementById('f_numero').value || (prefijoModalidad() + '0001');
   const cliente = limpiaNombre(document.getElementById('f_cliente_nombre')?.value);
   const empresa = limpiaNombre(document.getElementById('f_cliente_empresa')?.value);
   return [limpiaNombre(numero), 'Cotizacion', modalidadAbrev(), cliente, empresa].filter(Boolean).join('_');
@@ -2697,6 +2702,14 @@ async function listarArchivosOneDrive(){
 /* Devuelve el conjunto de números usados para un prefijo (MED o CC). */
 function numerosUsados(prefijo){
   const usados = new Set();
+  /* Archivos antiguos con prefijo MED cuentan para su propia modalidad. */
+  const legacyMod = { 'MO':'MO', 'TC':'TC', 'MOTC':'MO.TC' }[prefijo];
+  if(legacyMod){
+    docResults.forEach(d=>{
+      const m = /^MED[\s_-]*(\d{2,})/i.exec(String(d && d.nombre || ''));
+      if(m && d.modalidad === legacyMod){ const n = parseInt(m[1],10); if(n>0) usados.add(n); }
+    });
+  }
   const re = new RegExp('(?:^|[^A-Z])' + prefijo + '[\\s_-]*(\\d{2,})', 'g');
   docResults.forEach(d=>{
     const nombre = String(d && d.nombre || '').toUpperCase();
@@ -2719,11 +2732,22 @@ function primerNumeroLibre(prefijo){
   return n;
 }
 
+function prefijoModalidad(){
+  const a = modalidadAbrev();
+  return a === 'MO.TC' ? 'MOTC' : a;
+}
 async function siguienteNumeroInteligente(){
   await listarArchivosOneDrive();
-  const n = primerNumeroLibre('MED');
+  const pref = prefijoModalidad();
+  const n = primerNumeroLibre(pref);
   try{ localStorage.setItem(LAST_NUM_KEY, String(n)); }catch(e){}
-  return 'MED' + String(n).padStart(4, '0');
+  return pref + String(n).padStart(4, '0');
+}
+/* Al cambiar la modalidad se recalcula el consecutivo de esa modalidad. */
+async function recalcularNumeroPorModalidad(){
+  const el = document.getElementById('f_numero');
+  if(!el) return;
+  try{ el.value = await siguienteNumeroInteligente(); saveState(); }catch(e){}
 }
 
 
@@ -2831,9 +2855,15 @@ function renderDocs(){
   const cont = document.getElementById('doc-list');
   if(!cont) return;
   const q = (document.getElementById('home-search')?.value || '').trim();
+  const orden = document.getElementById('doc-sort')?.value || 'fecha';
+  const numDe = d => { const m = /(\d{2,})/.exec(String(d.numero||'')); return m ? parseInt(m[1],10) : 0; };
   const lista = docResults
     .filter(d => docFilter === 'all' ? true : d.modalidad === docFilter)
-    .filter(d => coincideDoc(d, q));
+    .filter(d => coincideDoc(d, q))
+    .slice()
+    .sort((a,b) => orden === 'numero'
+      ? (numDe(b) - numDe(a)) || String(b.numero).localeCompare(String(a.numero))
+      : String(b.fecha||'').localeCompare(String(a.fecha||'')));
   if(!lista.length){
     cont.innerHTML = docResults.length
       ? '<div class="home-status">No hay documentos que coincidan.</div>'
